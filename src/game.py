@@ -10,8 +10,8 @@ class Game:
     """
 
     def __init__(self, strategy1, strategy2, placement1, placement2):
-        self.p1 = Player(strategy1, placement1)
-        self.p2 = Player(strategy2, placement2)
+        self.p1 = Player(strategy1, placement1, name="P1")
+        self.p2 = Player(strategy2, placement2, name="P2")
         self.divider = pd.DataFrame({"|": ROWS})
         self.turns = 0
     

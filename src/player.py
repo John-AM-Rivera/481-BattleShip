@@ -6,19 +6,21 @@ from src import SHIP_LENS
 
 class Player:
 
-    def __init__(self, strategy: Strategy, placements: PlacementStrategy):
+    def __init__(self, strategy: Strategy, placements: PlacementStrategy, name):
         self.placements = placements
         self.strategy = strategy
         # where this player has shot at the opponent
         self.shots = ShotBoard()
         self.opponents_sunk = []
+        self.name = name
 
     def has_won(self):
         return len(self.opponents_sunk) == len(SHIP_LENS)
 
     def __repr__(self):
-        result = "Placements:\n"
-        result += str(self.placements)
+        result = "Player " + self.name + "\n"
+        result += "Placements:\n"
+        result += str(self.placements.as_board())
         result += "\nShots:\n"
         result += str(self.shots)
         return result
@@ -27,7 +29,7 @@ class Player:
         """
         shoot at opponent
         """
-        col, row = self.strategy.choose_shot(self.shots, self.opponents_sunk)
+        col, row = self.strategy.choose_shot(self.shots, self.opponents_sunk, name=self.name)
         result, sunk, length = opponent.placements.check_hit(col, row)
         if sunk:
             self.opponents_sunk.append(length)
