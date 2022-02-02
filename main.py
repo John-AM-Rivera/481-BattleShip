@@ -2,16 +2,13 @@ import numpy as np
 import pandas as pd
 
 from src import BOARD_SIZE
-from src.placements import all_possible_ship_locations, ShipPlacement
+from src.placements import all_possible_ship_locations, ShipPlacement, RandomPlacement
 from src.board import ShotBoard, SquareState
+from src.strategy import UserStrategy
 
+from src.game import Game
 
-board = ShotBoard()
+g = Game(UserStrategy(), UserStrategy(), RandomPlacement(), RandomPlacement())
 
-ship = ShipPlacement(("C", 4), ("C", 7))
+g.play(show=True)
 
-board[ship] = SquareState.SHIP
-board["E", 4] = SquareState.EMPTY
-board["G", 8] = SquareState.SHIP
-
-print(board)

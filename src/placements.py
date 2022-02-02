@@ -3,9 +3,11 @@ import pandas as pd
 import abc
 
 from src import SHIP_LENS, COLS, ROWS, BOARD_SIZE
-from src.board import SquareState
+from src.board import SquareState, ShotBoard
 
-
+"""
+Base classes & functions
+"""
 
 def all_possible_ship_locations(_cache={}):
     """
@@ -25,8 +27,8 @@ def all_possible_ship_locations(_cache={}):
                 ).merge(cols, how="cross"
                 ).merge(rows, how="cross")
         # calculate lower right ship position
-        data["col_end"] = data["col_start"] + ((1-data["is_vert"]) * data["length"])
-        data["row_end"] = data["row_start"] + (data["is_vert"] * data["length"])
+        data["col_end"] = data["col_start"] + ((1-data["is_vert"]) * (data["length"]-1))
+        data["row_end"] = data["row_start"] + (data["is_vert"] * (data["length"]-1))
         # filter ships that fall outside the board
         data = data[data["col_end"] < BOARD_SIZE]
         data = data[data["row_end"] < BOARD_SIZE]
@@ -36,20 +38,23 @@ def all_possible_ship_locations(_cache={}):
         # save to cache
         upperlefts = data[["col_start", "row_start"]].to_records(index=False)
         bottomrights = data[["col_end", "row_end"]].to_records(index=False)
-        placements = zip(upperlefts, bottomrights)
+        placements = list(zip(upperlefts, bottomrights))
         _cache["result"] = placements
     return [ShipPlacement(*p) for p in placements]
 
 
 class ShipPlacement:
+    """
+    object representing the placement of a specific ship in a specific location
+    """
 
     def __init__(self, upperleft, bottomright):
         """
         args:
-            upperleft, bottomright: tuples of form (column, row)
+            upperleft, bottomright: tuples of form (column, row), eg ("B", 7)
         """
-        self.upperleft = upperleft
-        self.bottomright = bottomright
+        self.upperleft = tuple(upperleft)
+        self.bottomright = tuple(bottomright)
         self.hits = 0
         self.length = 1 + (ord(bottomright[0]) - ord(upperleft[0])) + (bottomright[1] - upperleft[1])
     
@@ -59,6 +64,11 @@ class ShipPlacement:
     def __repr__(self):
         return "Ship, {} to {}".format(self.upperleft, self.bottomright)
 
+    def __eq__(self, other):
+        if not isinstance(other, ShipPlacement):
+            return False
+        return self.upperleft == other.upperleft and self.bottomright == other.bottomright
+
     def __iter__(self):
         """
         allow unpacking:
@@ -67,18 +77,33 @@ class ShipPlacement:
         """
         return (slice(*x) for x in zip(self.upperleft, self.bottomright))
 
+    def contains(self, col, row):
+        """
+        check whether a square is within this ship
+        """
+        return self.upperleft <= (col, row) <= self.bottomright
+
     def check_hit(self, col, row):
         """
         return whether this column and row are within a ship's extent
         args:
             loc: tuple(col, row)
         """
-        hit = (self.upperleft <= (col, row) <= self.bottomright) and \
-            (col == self.upperleft[0] or row == self.upperleft[1])
+        hit = self.contains(col, row)
         if hit:
             self.hits += 1
         return hit, self.is_sunk()
 
+    def overlaps(self, other_ship):
+        """
+        checks if two ship placements overlap
+        """
+        mincol1, minrow1 = self.upperleft
+        maxcol1, maxrow1 = self.bottomright
+        mincol2, minrow2 = other_ship.upperleft
+        maxcol2, maxrow2 = other_ship.bottomright
+        return (maxcol1 >= mincol2) and (maxcol2 >= mincol1) \
+            and (maxrow1 >= minrow2) and (maxrow2 >= minrow1)
 
 
 class PlacementStrategy(abc.ABC):
@@ -89,6 +114,11 @@ class PlacementStrategy(abc.ABC):
     def __init__(self):
         self.ships = self.generate_placements()
     
+    def __eq__(self, other):
+        if not isinstance(other, PlacementStrategy):
+            return False
+        return self.ships == other.ships
+
     @abc.abstractmethod
     def generate_placements(self):
         ...
@@ -109,3 +139,28 @@ class PlacementStrategy(abc.ABC):
                 return SquareState.SHIP, False, None
         return SquareState.EMPTY, False, None
 
+    def as_board(self):
+        board = ShotBoard()
+        board.data[:] = SquareState.EMPTY
+        for s in self.ships:
+            board[s] = SquareState.SHIP
+        return board
+
+"""
+specific strats
+"""
+
+
+class RandomPlacement(PlacementStrategy):
+
+    def generate_placements(self):
+        possible = all_possible_ship_locations()
+        selected = []
+        for length in SHIP_LENS:
+            possible_subset = [x for x in possible if x.length == length]
+            # print(length, possible_subset)
+            idx = np.random.randint(len(possible_subset))
+            ship = possible_subset[idx]
+            selected.append(ship)
+            possible = [x for x in possible if not x.overlaps(ship)]
+        return selected

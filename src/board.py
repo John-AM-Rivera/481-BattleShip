@@ -7,14 +7,10 @@ from src import BOARD_SIZE, ROWS, COLS
 
 class SquareState:
     UNKNOWN = "."
-    EMPTY = "-"
-    SHIP = "X"
+    EMPTY = "-" # miss
+    SHIP = "X" # hit
 
 
-def col_to_str(col):
-    if isinstance(col, int):
-        return COLS[col]
-    return col
 
 class ShotBoard(abc.ABC):
     """
