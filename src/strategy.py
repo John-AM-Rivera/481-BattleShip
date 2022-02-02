@@ -1,5 +1,10 @@
 import abc
 
+import numpy as np
+import pandas as pd
+
+from src.board import SquareState
+
 
 class Strategy(abc.ABC):
     """
@@ -19,6 +24,9 @@ class Strategy(abc.ABC):
         """
         ...
 
+"""
+concrete strategies
+"""
 
 class UserStrategy(Strategy):
 
@@ -27,3 +35,14 @@ class UserStrategy(Strategy):
         col, row = square
         row = int(row)
         return col, row
+
+
+class RandomStrategy(Strategy):
+
+    def choose_shot(self, board, opponents_sunk, name=None):
+        flat_board = board.data.stack()
+        valid_squares = flat_board[flat_board == SquareState.UNKNOWN].index.to_list()
+        idx = np.random.randint(len(valid_squares))
+        row, col = valid_squares[idx]
+        return col, row
+
