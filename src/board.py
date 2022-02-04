@@ -22,12 +22,16 @@ class Board(abc.ABC):
     rows are 0-based number indexing: 0,1,2...
     """
 
-    def __init__(self, initial_val):
+    def __init__(self, initial_val, flat=False):
         """
         args:
             initial_val
+            flat: whether to store the board as a flattened series (better format for some Strategies to work with)
         """
+        self.isflat = flat
         self.data = pd.DataFrame(np.full((BOARD_SIZE, BOARD_SIZE), initial_val), columns=COLS)
+        if flat:
+            self.data = self.data.stack()
 
     def __repr__(self):
         return str(self.data)
@@ -40,7 +44,11 @@ class Board(abc.ABC):
         col, row = index
         self.data.loc[row, col] = val
 
-
-
-
-
+    def get_data(self):
+        """
+        get data as the standard square board
+        """
+        if self.isflat:
+            return self.data.unstack()
+        else:
+            return self.data

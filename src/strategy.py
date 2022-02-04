@@ -11,6 +11,10 @@ class Strategy(abc.ABC):
     interface that other strategies should implement
     """
 
+    # attribute that determines whether the board should be flattened with
+    # DataFrame.stack()
+    require_flat_board = False
+
     @abc.abstractmethod
     def choose_shot(self, board, opponents_sunk, name=None):
         """
@@ -39,9 +43,11 @@ class UserStrategy(Strategy):
 
 class RandomStrategy(Strategy):
 
+    require_flat_board = True
+
     def choose_shot(self, board, opponents_sunk, name=None):
-        flat_board = board.data.stack()
-        valid_squares = flat_board[flat_board == SquareState.UNKNOWN].index.to_list()
+        flat_board = board.data
+        valid_squares = flat_board[flat_board == SquareState.UNKNOWN].index
         idx = np.random.randint(len(valid_squares))
         row, col = valid_squares[idx]
         return col, row
