@@ -6,11 +6,11 @@ from src.placements import ShipPlacement
 class Tests(unittest.TestCase):
 
     def test_ship_overlap(self):
-        s1 = ShipPlacement(("A", 4), ("C", 4))
-        s2 = ShipPlacement(("B", 1), ("B", 5))
-        s3 = ShipPlacement(("C", 4), ("F", 4))
-        s4 = ShipPlacement(("C", 5), ("E", 5))
-        s5 = ShipPlacement(("G", 8), ("H", 8))
+        s1 = ShipPlacement("A", 4, "C", 4)
+        s2 = ShipPlacement("B", 1, "B", 5)
+        s3 = ShipPlacement("C", 4, "F", 4)
+        s4 = ShipPlacement("C", 5, "E", 5)
+        s5 = ShipPlacement("G", 8, "H", 8)
 
         self.assertEqual(s1.length, 3)
         self.assertEqual(s2.length, 5)
@@ -31,7 +31,7 @@ class Tests(unittest.TestCase):
             self.assertTrue(s.overlaps(s))
         
     def test_ship_contains(self):
-        s = ShipPlacement(("C", 5), ("E", 5))
+        s = ShipPlacement("C", 5, "E", 5)
         for row in ROWS:
             for col in COLS:
                 contains = s.contains(col, row)

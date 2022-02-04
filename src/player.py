@@ -1,4 +1,4 @@
-from src.board import ShotBoard
+from src.board import Board, SquareState
 from src.strategy import Strategy
 from src.placements import PlacementStrategy
 from src import SHIP_LENS
@@ -9,10 +9,10 @@ class Player:
     def __init__(self, strategy: Strategy, placements: PlacementStrategy, name):
         self.placements = placements
         self.strategy = strategy
-        # where this player has shot at the opponent
-        self.shots = ShotBoard()
         self.opponents_sunk = []
         self.name = name
+        # board to keep track of our shots
+        self.shots = Board(SquareState.UNKNOWN)
 
     def has_won(self):
         return len(self.opponents_sunk) == len(SHIP_LENS)

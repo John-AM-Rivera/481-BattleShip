@@ -7,12 +7,14 @@ from src import BOARD_SIZE, ROWS, COLS
 
 class SquareState:
     UNKNOWN = "."
-    EMPTY = "-" # miss
-    SHIP = "X" # hit
+    EMPTY = "-" # aka miss
+    SHIP = "X" # aka hit
+
+    def __init__(self):
+        raise NotImplementedError("You shouldn't be initializing an instance of this. Just use SquareState.EMPTY instead of SquareState().EMPTY, for example")
 
 
-
-class ShotBoard(abc.ABC):
+class Board(abc.ABC):
     """
     class for board keeping track of shots
     indexing must be (column, row) order
@@ -20,8 +22,12 @@ class ShotBoard(abc.ABC):
     rows are 0-based number indexing: 0,1,2...
     """
 
-    def __init__(self):
-        self.data = pd.DataFrame(np.full((BOARD_SIZE, BOARD_SIZE), SquareState.UNKNOWN), columns=COLS)
+    def __init__(self, initial_val):
+        """
+        args:
+            initial_val
+        """
+        self.data = pd.DataFrame(np.full((BOARD_SIZE, BOARD_SIZE), initial_val), columns=COLS)
 
     def __repr__(self):
         return str(self.data)

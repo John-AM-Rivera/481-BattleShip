@@ -3,7 +3,7 @@ import pandas as pd
 import abc
 
 from src import SHIP_LENS, COLS, ROWS, BOARD_SIZE
-from src.board import SquareState, ShotBoard
+from src.board import SquareState, Board
 
 """
 Base classes & functions
@@ -36,9 +36,7 @@ def all_possible_ship_locations(_cache={}):
         data["col_start"] = data["col_start"].apply(lambda x: COLS[x])
         data["col_end"] = data["col_end"].apply(lambda x: COLS[x])
         # save to cache
-        upperlefts = data[["col_start", "row_start"]].to_records(index=False)
-        bottomrights = data[["col_end", "row_end"]].to_records(index=False)
-        placements = list(zip(upperlefts, bottomrights))
+        placements = data[["col_start", "row_start", "col_end", "row_end"]].to_records(index=False)
         _cache["result"] = placements
     return [ShipPlacement(*p) for p in placements]
 
@@ -48,40 +46,39 @@ class ShipPlacement:
     object representing the placement of a specific ship in a specific location
     """
 
-    def __init__(self, upperleft, bottomright):
-        """
-        args:
-            upperleft, bottomright: tuples of form (column, row), eg ("B", 7)
-        """
-        self.upperleft = tuple(upperleft)
-        self.bottomright = tuple(bottomright)
+    def __init__(self, col_start, row_start, col_end, row_end):
+        self.col_start = col_start
+        self.col_end = col_end
+        self.row_start = row_start
+        self.row_end = row_end
         self.hits = 0
-        self.length = 1 + (ord(bottomright[0]) - ord(upperleft[0])) + (bottomright[1] - upperleft[1])
+        self.length = 1 + (ord(col_end) - ord(col_start)) + (row_end - row_start)
     
     def is_sunk(self):
         return self.hits == self.length
 
     def __repr__(self):
-        return "Ship, {} to {}".format(self.upperleft, self.bottomright)
+        return "Ship, {}{} to {}{}".format(self.col_start, self.row_start, self.col_end, self.row_end)
 
     def __eq__(self, other):
         if not isinstance(other, ShipPlacement):
             return False
-        return self.upperleft == other.upperleft and self.bottomright == other.bottomright
+        return self.col_start == other.col_start and self.col_end == other.col_end and \
+            self.row_start == other.row_start and self.row_end == other.row_end
 
     def __iter__(self):
         """
         allow unpacking:
         s = ShipPlacement(("A", 3), ("A", 5))
-        "A":"A", 3:5 = s
+        slice("A":"A"), slice(3:5) = s
         """
-        return (slice(*x) for x in zip(self.upperleft, self.bottomright))
+        return iter((slice(self.col_start, self.row_start), slice(self.col_end, self.row_end)))
 
     def contains(self, col, row):
         """
         check whether a square is within this ship
         """
-        return self.upperleft <= (col, row) <= self.bottomright
+        return (self.col_start <= col <= self.col_end) and (self.row_start <= row <= self.row_end)
 
     def check_hit(self, col, row):
         """
@@ -94,16 +91,12 @@ class ShipPlacement:
             self.hits += 1
         return hit, self.is_sunk()
 
-    def overlaps(self, other_ship):
+    def overlaps(self, other):
         """
         checks if two ship placements overlap
         """
-        mincol1, minrow1 = self.upperleft
-        maxcol1, maxrow1 = self.bottomright
-        mincol2, minrow2 = other_ship.upperleft
-        maxcol2, maxrow2 = other_ship.bottomright
-        return (maxcol1 >= mincol2) and (maxcol2 >= mincol1) \
-            and (maxrow1 >= minrow2) and (maxrow2 >= minrow1)
+        return (self.col_end >= other.col_start) and (other.col_end >= self.col_start) \
+            and (self.row_end >= other.row_start) and (other.row_end >= self.row_start)
 
 
 class PlacementStrategy(abc.ABC):
@@ -114,6 +107,9 @@ class PlacementStrategy(abc.ABC):
     def __init__(self):
         self.ships = self.generate_placements()
     
+    def __repr__(self):
+        return str(self.as_board())
+
     def __eq__(self, other):
         if not isinstance(other, PlacementStrategy):
             return False
@@ -140,8 +136,7 @@ class PlacementStrategy(abc.ABC):
         return SquareState.EMPTY, False, None
 
     def as_board(self):
-        board = ShotBoard()
-        board.data[:] = SquareState.EMPTY
+        board = Board(SquareState.EMPTY)
         for s in self.ships:
             board[s] = SquareState.SHIP
         return board
