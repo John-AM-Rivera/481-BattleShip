@@ -26,15 +26,15 @@ class Board(abc.ABC):
         """
         args:
             initial_val
-            flat: whether to store the board as a flattened series (better format for some Strategies to work with)
+            flat: whether to store the board as a flattened series (more efficient lookups)
         """
         self.isflat = flat
         self.data = pd.DataFrame(np.full((BOARD_SIZE, BOARD_SIZE), initial_val), columns=COLS)
-        if flat:
+        if flat: 
             self.data = self.data.stack()
 
     def __repr__(self):
-        return str(self.data)
+        return str(self.get_data())
 
     def __getitem__(self, index):
         col, row = index
@@ -42,6 +42,9 @@ class Board(abc.ABC):
     
     def __setitem__(self, index, val):
         col, row = index
+        # checking this condition doubles the playtime per turn...
+        if self.data.loc[row, col] != SquareState.UNKNOWN:
+            raise ValueError("Shooting twice in square {}{}!".format(row, col))
         self.data.loc[row, col] = val
 
     def get_data(self):

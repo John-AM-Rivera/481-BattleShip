@@ -16,7 +16,7 @@ class Player:
         self.opponents_sunk = []
         self.name = name
         # board to keep track of our shots
-        self.shots = Board(SquareState.UNKNOWN, flat=self.strategy.require_flat_board)
+        self.shots = Board(SquareState.UNKNOWN, flat=(not self.strategy.require_square_board))
         # number of turns
         self.turns = 0
 
@@ -35,14 +35,11 @@ class Player:
         """
         shoot at opponent
         """
-        benchmark("shoot")
         col, row = self.strategy.choose_shot(self.shots, self.opponents_sunk, name=self.name)
-        benchmark("shoot")
-        benchmark("check hit")
         result, sunk, length = opponent.placements.check_hit(col, row)
-        benchmark("check hit")
         if sunk:
             self.opponents_sunk.append(length)
         # add shot to our board
         self.shots[col, row] = result
+        self.strategy.handle_result(col, row, result, sunk, length)
         self.turns += 1

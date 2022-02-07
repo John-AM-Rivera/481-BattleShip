@@ -11,7 +11,7 @@ Base classes & functions
 
 def all_possible_ship_locations(_cache={}):
     """
-    A dataframe of all valid ship placements. Caches results so multiple calls don't recompute the same data
+    A list of all valid ship placements. Caches results so multiple calls don't recompute the same data
     returns:
         list(ShipPlacement)
     """

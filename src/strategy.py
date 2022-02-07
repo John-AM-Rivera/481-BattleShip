@@ -1,9 +1,12 @@
 import abc
+import itertools
+import random
 
 import numpy as np
 import pandas as pd
 
-from src.board import SquareState
+from src.board import SquareState, Board, ROWS, COLS
+from src.placements import all_possible_ship_locations
 
 
 class Strategy(abc.ABC):
@@ -12,8 +15,8 @@ class Strategy(abc.ABC):
     """
 
     # attribute that determines whether the board should be flattened with
-    # DataFrame.stack()
-    require_flat_board = False
+    # DataFrame.stack(). Flat has faster lookup than square, so should be preferred
+    require_square_board = False
 
     @abc.abstractmethod
     def choose_shot(self, board, opponents_sunk, name=None):
@@ -28,6 +31,14 @@ class Strategy(abc.ABC):
         """
         ...
 
+    def handle_result(self, col, row, result, sunk, length):
+        """
+        update internal state in response to the result of a shot. Default
+        behavior is to do nothing
+        """
+        pass
+
+
 """
 concrete strategies
 """
@@ -39,16 +50,46 @@ class UserStrategy(Strategy):
         col, row = square
         row = int(row)
         return col, row
+    
+    def handle_result(self, col, row, result, sunk, length):
+        if result == SquareState.SHIP:
+            if sunk:
+                print(f"{col}{row}: You sunk my ship of length {length}!")
+            else:
+                print(f"{col}{row}: Hit!")
+        else:
+            print(f"{col}{row}: Miss.")
 
 
 class RandomStrategy(Strategy):
 
-    require_flat_board = True
+    def __init__(self):
+        self.valid_squares = set(itertools.product(COLS, ROWS))
 
     def choose_shot(self, board, opponents_sunk, name=None):
-        flat_board = board.data
-        valid_squares = flat_board[flat_board == SquareState.UNKNOWN].index
-        idx = np.random.randint(len(valid_squares))
-        row, col = valid_squares[idx]
-        return col, row
+        # select random element from set
+        return self.valid_squares.pop()
+
+
+class EliminationStrategy(Strategy):
+
+    def __init__(self):
+        self.possible_ships = all_possible_ship_locations()
+        self.valid_squares = list(itertools.product(COLS, ROWS))
+        random.shuffle(self.valid_squares)
+
+    def choose_shot(self, board, opponents_sunk, name=None):
+        ship_counts = [
+            sum(ship.contains(*square) for ship in self.possible_ships) for square in self.valid_squares
+        ]
+        # shoot at place with the highest number of possible ship placements
+        best_idx = np.argmax(ship_counts)
+        return self.valid_squares.pop(best_idx)
+    
+    def handle_result(self, col, row, result, sunk, length):
+        # invalidate ships on a miss
+        if result == SquareState.EMPTY:
+            self.possible_ships = [
+                ship for ship in self.possible_ships if not ship.contains(col, row)
+            ]
 

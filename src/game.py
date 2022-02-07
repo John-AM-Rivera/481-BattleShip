@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import time
 
 from src import BOARD_SIZE, ROWS, COLS
@@ -21,16 +22,16 @@ class Simulation:
         self.active_timers = {}
     
     def _start_timer(self, name):
-        self.active_timers[name+" time"] = time.perf_counter()
+        self.active_timers[name] = time.perf_counter()
 
     def _end_timer(self, name):
         t = time.perf_counter()
-        name += " time"
         if name not in self.total_timers:
             self.total_timers[name] = 0
         self.total_timers[name] += t - self.active_timers.pop(name)
 
     def run(self, n):
+        print("Simulating", n, "runs with", self.strategy.__name__, "and", self.placement.__name__)
         self._start_timer("total")
         for _ in range(n):
             # use placeholders for shooter's placements, target's shot strat
@@ -44,16 +45,23 @@ class Simulation:
             self._end_timer("play")
             self.turns.append(shooter.turns)
         self._end_timer("total")
-        # make sure there are no running timings
+        # make sure there are no running timers
         assert len(self.active_timers) == 0
         return self
 
     def metrics(self):
-        newvals = {
+        metric_vals = {
             "n_simulations": len(self.turns),
-            "avg_turns": sum(self.turns) / len(self.turns),
+            "total_turns": np.sum(self.turns),
+            "avg_turns": np.mean(self.turns),
+            "std_dev_turns": np.std(self.turns),
         }
-        return dict(**self.total_timers, **newvals)
+        metric_vals["time"] = {
+            "cumulative_sec": self.total_timers,
+            "per_game_ms": {k:v/metric_vals["n_simulations"]*1000 for k,v in self.total_timers.items()},
+            "per_turn_ms": self.total_timers["play"]/metric_vals["total_turns"]*1000,
+        }
+        return metric_vals
 
 
 
