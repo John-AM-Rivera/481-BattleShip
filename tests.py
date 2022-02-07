@@ -2,6 +2,7 @@ import unittest
 
 from src import BOARD_SIZE, ROWS, COLS
 from src.placements import ShipPlacement
+from src.board import SquareState
 
 class Tests(unittest.TestCase):
 
@@ -32,6 +33,7 @@ class Tests(unittest.TestCase):
         
     def test_ship_contains(self):
         s = ShipPlacement("C", 5, "E", 5)
+        s2 = ShipPlacement("G", 8, "G", 9)
         for row in ROWS:
             for col in COLS:
                 contains = s.contains(col, row)
@@ -39,6 +41,26 @@ class Tests(unittest.TestCase):
                     self.assertTrue(contains, f"{col} {row}")
                 else:
                     self.assertFalse(contains, f"{col} {row}")
+                contains2 = s2.contains(col, row)
+                if col == "G" and row in [8, 9]:
+                    self.assertTrue(contains2)
+                else:
+                    self.assertFalse(contains2)
+
+    def test_ship_hit(self):
+        s = ShipPlacement("D", 4, "D", 5)
+        # hit
+        hit, sunk = s.check_hit("D", 5)
+        self.assertTrue(hit)
+        self.assertFalse(sunk)
+        # miss
+        hit, sunk = s.check_hit("D", 6)
+        self.assertFalse(hit)
+        self.assertFalse(sunk)
+        # hit
+        hit, sunk = s.check_hit("D", 4)
+        self.assertTrue(hit)
+        self.assertTrue(sunk)
 
 
 if __name__ == "__main__":

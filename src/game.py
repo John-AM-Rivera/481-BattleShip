@@ -16,26 +16,44 @@ class Simulation:
         self.placement = placement1
         # counters
         self.turns = []
-        self.sim_time = 0
+        # store time of various components
+        self.total_timers = {}
+        self.active_timers = {}
     
+    def _start_timer(self, name):
+        self.active_timers[name+" time"] = time.perf_counter()
+
+    def _end_timer(self, name):
+        t = time.perf_counter()
+        name += " time"
+        if name not in self.total_timers:
+            self.total_timers[name] = 0
+        self.total_timers[name] += t - self.active_timers.pop(name)
+
     def run(self, n):
-        t1 = time.perf_counter()
+        self._start_timer("total")
         for _ in range(n):
             # use placeholders for shooter's placements, target's shot strat
+            self._start_timer("init")
             shooter = Player(self.strategy, lambda: None, "shooter")
             target = Player(UserStrategy, self.placement, "target")
+            self._end_timer("init")
+            self._start_timer("play")
             while not shooter.has_won():
                 shooter.take_turn_against(target)
+            self._end_timer("play")
             self.turns.append(shooter.turns)
-        self.sim_time += time.perf_counter() - t1
+        self._end_timer("total")
+        # make sure there are no running timings
+        assert len(self.active_timers) == 0
         return self
 
     def metrics(self):
-        return {
+        newvals = {
             "n_simulations": len(self.turns),
             "avg_turns": sum(self.turns) / len(self.turns),
-            "sim_time": self.sim_time,
         }
+        return dict(**self.total_timers, **newvals)
 
 
 
