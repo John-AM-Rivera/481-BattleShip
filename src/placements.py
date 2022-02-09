@@ -13,19 +13,21 @@ def all_possible_ship_locations(_cache={}):
     """
     A list of all valid ship placements. Caches results so multiple calls don't recompute the same data
     returns:
-        list(ShipPlacement)
+        set(ShipPlacement)
     """
     if "result" in _cache:
         placements = _cache["result"]
     else:
-        lengths = pd.DataFrame({"length": SHIP_LENS})
+        names = pd.DataFrame({"name": list(SHIP_LENS.keys())})
         directions = pd.DataFrame({"is_vert": [0, 1]}) # vertical or horizontal
-        # upper left column and row
         cols = pd.DataFrame({"col_start": range(len(COLS))})
         rows = pd.DataFrame({"row_start": range(len(COLS))})
-        data = lengths.merge(directions, how="cross"
+        # cartesian product of possible values
+        data = names.merge(directions, how="cross"
                 ).merge(cols, how="cross"
                 ).merge(rows, how="cross")
+        # convert name to length
+        data["length"] = data["name"].apply(lambda x: SHIP_LENS[x]) 
         # calculate lower right ship position
         data["col_end"] = data["col_start"] + ((1-data["is_vert"]) * (data["length"]-1))
         data["row_end"] = data["row_start"] + (data["is_vert"] * (data["length"]-1))
@@ -36,9 +38,9 @@ def all_possible_ship_locations(_cache={}):
         data["col_start"] = data["col_start"].apply(lambda x: COLS[x])
         data["col_end"] = data["col_end"].apply(lambda x: COLS[x])
         # save to cache
-        placements = data[["col_start", "row_start", "col_end", "row_end"]].to_records(index=False)
+        placements = data[["col_start", "row_start", "col_end", "row_end", "name"]].to_records(index=False)
         _cache["result"] = placements
-    return [ShipPlacement(*p) for p in placements]
+    return {ShipPlacement(*p) for p in placements}
 
 
 class ShipPlacement:
@@ -46,11 +48,12 @@ class ShipPlacement:
     object representing the placement of a specific ship in a specific location
     """
 
-    def __init__(self, col_start, row_start, col_end, row_end):
+    def __init__(self, col_start, row_start, col_end, row_end, name):
         self.col_start = col_start
         self.col_end = col_end
         self.row_start = row_start
         self.row_end = row_end
+        self.name = name
         self.hits = 0
         self.length = 1 + (ord(col_end) - ord(col_start)) + (row_end - row_start)
     
@@ -58,13 +61,16 @@ class ShipPlacement:
         return self.hits == self.length
 
     def __repr__(self):
-        return "Ship, {}{} to {}{}".format(self.col_start, self.row_start, self.col_end, self.row_end)
+        return "{}, {}{} to {}{}".format(self.name.capitalize(), self.col_start, self.row_start, self.col_end, self.row_end)
 
     def __eq__(self, other):
         if not isinstance(other, ShipPlacement):
             return False
-        return self.col_start == other.col_start and self.col_end == other.col_end and \
+        return self.name == other.name and self.col_start == other.col_start and self.col_end == other.col_end and \
             self.row_start == other.row_start and self.row_end == other.row_end
+
+    def __hash__(self):
+        return hash((self.name, self.col_start, self.col_end, self.row_start, self.row_end))
 
     def __iter__(self):
         """
@@ -117,6 +123,9 @@ class PlacementStrategy(abc.ABC):
 
     @abc.abstractmethod
     def generate_placements(self):
+        """
+        main method to override. Should return a list of 5 ship placements
+        """
         ...
 
     def check_hit(self, col, row):
@@ -124,13 +133,13 @@ class PlacementStrategy(abc.ABC):
         returns:
             status: SquareState
             sunk: bool
-            length: length of sunk ship, only applicable if sunk
+            name: name of sunk ship, only applicable if sunk
         """
         for i,ship in enumerate(self.ships):
             hit, sunk = ship.check_hit(col, row)
             if sunk:
                 self.ships.pop(i)
-                return SquareState.SHIP, True, ship.length
+                return SquareState.SHIP, True, ship.name
             if hit:
                 return SquareState.SHIP, False, None
         return SquareState.EMPTY, False, None
@@ -151,9 +160,8 @@ class RandomPlacement(PlacementStrategy):
     def generate_placements(self):
         possible = all_possible_ship_locations()
         selected = []
-        for length in SHIP_LENS:
-            possible_subset = [x for x in possible if x.length == length]
-            # print(length, possible_subset)
+        for name in SHIP_LENS.keys():
+            possible_subset = [x for x in possible if x.name == name]
             idx = np.random.randint(len(possible_subset))
             ship = possible_subset[idx]
             selected.append(ship)

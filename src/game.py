@@ -58,7 +58,7 @@ class Simulation:
         }
         metric_vals["time"] = {
             "cumulative_sec": self.total_timers,
-            "per_game_ms": {k:v/metric_vals["n_simulations"]*1000 for k,v in self.total_timers.items()},
+            "per_game_sec": {k:v/metric_vals["n_simulations"] for k,v in self.total_timers.items()},
             "per_turn_ms": self.total_timers["play"]/metric_vals["total_turns"]*1000,
         }
         return metric_vals

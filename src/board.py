@@ -42,7 +42,6 @@ class Board(abc.ABC):
     
     def __setitem__(self, index, val):
         col, row = index
-        # checking this condition doubles the playtime per turn...
         if self.data.loc[row, col] != SquareState.UNKNOWN:
             raise ValueError("Shooting twice in square {}{}!".format(row, col))
         self.data.loc[row, col] = val

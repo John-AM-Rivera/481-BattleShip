@@ -5,7 +5,13 @@ import time
 BOARD_SIZE = 10
 
 # define ship sizes
-SHIP_LENS = [5, 4, 3, 3, 2]
+SHIP_LENS = {
+    "carrier": 5, 
+    "battleship": 4, 
+    "submarine": 3,
+    "destroyer": 3, 
+    "patrol boat": 2
+}
 
 # rows are A,B,C...
 COLS = [x.upper() for x in string.ascii_lowercase[:BOARD_SIZE]]

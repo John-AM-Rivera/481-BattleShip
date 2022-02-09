@@ -23,18 +23,23 @@ class Strategy(abc.ABC):
         """
         args:
             board: board of known shots
-            opponents_sunk: list(int), lengths of ships that have been sunk
-            name: str
+            opponents_sunk: list(str), names of ships that have been sunk
+            name: str, of this player
         returns:
             col: str (ex: "E")
             row: int (ex: 4)
         """
         ...
 
-    def handle_result(self, col, row, result, sunk, length):
+    def handle_result(self, col, row, result, sunk, name):
         """
         update internal state in response to the result of a shot. Default
         behavior is to do nothing
+        args:
+            col, row: shot we chose
+            result: shot result
+            sunk: bool
+            name: name of sunk ship, only applicable if sunk
         """
         pass
 
@@ -51,10 +56,10 @@ class UserStrategy(Strategy):
         row = int(row)
         return col, row
     
-    def handle_result(self, col, row, result, sunk, length):
+    def handle_result(self, col, row, result, sunk, name):
         if result == SquareState.SHIP:
             if sunk:
-                print(f"{col}{row}: You sunk my ship of length {length}!")
+                print(f"{col}{row}: You sunk my {name}!")
             else:
                 print(f"{col}{row}: Hit!")
         else:
@@ -76,7 +81,6 @@ class EliminationStrategy(Strategy):
     def __init__(self):
         self.possible_ships = all_possible_ship_locations()
         self.valid_squares = list(itertools.product(COLS, ROWS))
-        random.shuffle(self.valid_squares)
 
     def choose_shot(self, board, opponents_sunk, name=None):
         ship_counts = [
@@ -86,10 +90,10 @@ class EliminationStrategy(Strategy):
         best_idx = np.argmax(ship_counts)
         return self.valid_squares.pop(best_idx)
     
-    def handle_result(self, col, row, result, sunk, length):
+    def handle_result(self, col, row, result, sunk, name):
         # invalidate ships on a miss
         if result == SquareState.EMPTY:
-            self.possible_ships = [
-                ship for ship in self.possible_ships if not ship.contains(col, row)
-            ]
+            self.possible_ships = {ship for ship in self.possible_ships if not ship.contains(col, row)}
+        if sunk:
+            self.possible_ships = {ship for ship in self.possible_ships if not ship.name == name}
 

@@ -36,10 +36,10 @@ class Player:
         shoot at opponent
         """
         col, row = self.strategy.choose_shot(self.shots, self.opponents_sunk, name=self.name)
-        result, sunk, length = opponent.placements.check_hit(col, row)
+        result, sunk, name = opponent.placements.check_hit(col, row)
         if sunk:
-            self.opponents_sunk.append(length)
+            self.opponents_sunk.append(name)
         # add shot to our board
         self.shots[col, row] = result
-        self.strategy.handle_result(col, row, result, sunk, length)
+        self.strategy.handle_result(col, row, result, sunk, name)
         self.turns += 1
