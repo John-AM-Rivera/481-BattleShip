@@ -167,7 +167,10 @@ class PlacementStrategy(abc.ABC):
         return total_board / n
 
 
-class NoPlacements():
+class NoPlacements(PlacementStrategy):
+
+    def __init__(self, *args, **kwargs):
+        pass
 
     def generate_placements(self, *args, **kwargs):
         raise NotImplementedError()

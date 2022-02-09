@@ -43,7 +43,7 @@ class Strategy(abc.ABC):
         """
         pass
 
-class NoStrategy():
+class NoStrategy(Strategy):
 
     def choose_shot(self, *args, **kwargs):
         raise NotImplementedError()

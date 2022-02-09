@@ -4,8 +4,8 @@ import time
 
 from src import BOARD_SIZE, ROWS, COLS
 from src.player import Player
-from src.strategy import UserStrategy, Strategy
-from src.placements import PlacementStrategy
+from src.strategy import UserStrategy, Strategy, NoStrategy
+from src.placements import PlacementStrategy, NoPlacements
 
 
 class Simulation:
@@ -37,8 +37,8 @@ class Simulation:
         for _ in range(n):
             # use placeholders for shooter's placements, target's shot strat
             self._start_timer("init")
-            shooter = Player(self.strategy, lambda: None, "shooter")
-            target = Player(UserStrategy, self.placement, "target")
+            shooter = Player(self.strategy, NoPlacements, "shooter")
+            target = Player(NoStrategy, self.placement, "target")
             self._end_timer("init")
             self._start_timer("play")
             while not shooter.has_won():
