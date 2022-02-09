@@ -4,7 +4,8 @@ import time
 
 from src import BOARD_SIZE, ROWS, COLS
 from src.player import Player
-from src.strategy import UserStrategy
+from src.strategy import UserStrategy, Strategy
+from src.placements import PlacementStrategy
 
 
 class Simulation:
@@ -103,4 +104,4 @@ class Game:
 
     def show_boards(self):
         print("Player zeros's shots:            Player ones's shots:")
-        print(pd.concat((self.p0.shots.get_data(), self.divider, self.p1.shots.get_data()), axis=1))
+        print(pd.concat((self.p0.shots.get_printable(), self.divider, self.p1.shots.get_printable()), axis=1))

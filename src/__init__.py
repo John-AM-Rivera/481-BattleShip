@@ -6,8 +6,8 @@ BOARD_SIZE = 10
 
 # define ship sizes
 SHIP_LENS = {
-    "carrier": 5, 
-    "battleship": 4, 
+    "carrier": 5,
+    "battleship": 4,
     "submarine": 3,
     "destroyer": 3, 
     "patrol boat": 2

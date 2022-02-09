@@ -144,11 +144,34 @@ class PlacementStrategy(abc.ABC):
                 return SquareState.SHIP, False, None
         return SquareState.EMPTY, False, None
 
-    def as_board(self):
-        board = Board(SquareState.EMPTY)
+    def as_board(self, flat=False):
+        board = Board(SquareState.EMPTY, flat=flat)
         for s in self.ships:
             board[s] = SquareState.SHIP
         return board
+
+    @classmethod
+    def distribution(cls, n):
+        """
+        simulate N placements and return the board representing the probability
+        distribution of ship placements
+        """
+        total_board = None
+        for _ in range(n):
+            board = cls().as_board(flat=True)
+            board = board.map({SquareState.EMPTY: 0, SquareState.SHIP: 1})
+            if total_board is None:
+                total_board = board
+            else:
+                total_board += board
+        return total_board / n
+
+
+class NoPlacements():
+
+    def generate_placements(self, *args, **kwargs):
+        raise NotImplementedError()
+
 
 """
 specific strats

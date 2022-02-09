@@ -10,11 +10,5 @@ from src.strategy import *
 
 from src.game import Game, Simulation
 
-# print(RandomPlacement().as_board())
-
-s = Simulation(RandomStrategy, RandomPlacement).run(3)
-pprint(s.metrics())
-
-s = Simulation(EliminationStrategy, RandomPlacement).run(3)
-pprint(s.metrics())
-
+g = Game(UserStrategy, RandomStrategy, RandomPlacement, RandomPlacement)
+g.play(show=True)

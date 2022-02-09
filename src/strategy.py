@@ -43,6 +43,11 @@ class Strategy(abc.ABC):
         """
         pass
 
+class NoStrategy():
+
+    def choose_shot(self, *args, **kwargs):
+        raise NotImplementedError()
+
 
 """
 concrete strategies
@@ -94,6 +99,7 @@ class EliminationStrategy(Strategy):
         # invalidate ships on a miss
         if result == SquareState.EMPTY:
             self.possible_ships = {ship for ship in self.possible_ships if not ship.contains(col, row)}
+        # remove sunk ship possibilities
         if sunk:
             self.possible_ships = {ship for ship in self.possible_ships if not ship.name == name}
 

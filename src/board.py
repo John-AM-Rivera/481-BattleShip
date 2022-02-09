@@ -6,9 +6,15 @@ from src import BOARD_SIZE, ROWS, COLS
 
 
 class SquareState:
-    UNKNOWN = "."
-    EMPTY = "-" # aka miss
-    SHIP = "X" # aka hit
+    UNKNOWN = -1
+    EMPTY = 0 # aka miss
+    SHIP = 1 # aka hit
+
+    MAP_TO_STR = {
+        UNKNOWN: ".",
+        EMPTY: "-",
+        SHIP: "X",
+    }
 
     def __init__(self):
         raise NotImplementedError("You shouldn't be initializing an instance of this. Just use SquareState.EMPTY instead of SquareState().EMPTY, for example")
@@ -34,7 +40,7 @@ class Board(abc.ABC):
             self.data = self.data.stack()
 
     def __repr__(self):
-        return str(self.get_data())
+        return str(self.get_printable())
 
     def __getitem__(self, index):
         col, row = index
@@ -46,11 +52,13 @@ class Board(abc.ABC):
             raise ValueError("Shooting twice in square {}{}!".format(row, col))
         self.data.loc[row, col] = val
 
-    def get_data(self):
+    def get_printable(self):
         """
         get data as the standard square board
         """
         if self.isflat:
-            return self.data.unstack()
+            data = self.data
         else:
-            return self.data
+            data = self.data.stack()
+        data = data.map(SquareState.MAP_TO_STR)
+        return data.unstack()

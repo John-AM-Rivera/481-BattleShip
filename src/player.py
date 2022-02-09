@@ -13,6 +13,8 @@ class Player:
     def __init__(self, strategy: Strategy, placements: PlacementStrategy, name):
         self.placements = placements()
         self.strategy = strategy()
+        assert isinstance(self.strategy, Strategy)
+        assert isinstance(self.placements, PlacementStrategy)
         self.opponents_sunk = []
         self.name = name
         # board to keep track of our shots
