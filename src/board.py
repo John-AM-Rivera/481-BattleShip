@@ -20,7 +20,7 @@ class SquareState:
         raise NotImplementedError("You shouldn't be initializing an instance of this. Just use SquareState.EMPTY instead of SquareState().EMPTY, for example")
 
 
-class Board(abc.ABC):
+class Board():
     """
     class for board keeping track of shots
     indexing must be (column, row) order
@@ -34,8 +34,8 @@ class Board(abc.ABC):
             initial_val
             flat: whether to store the board as a flattened series (more efficient lookups)
         """
-        self.isflat = flat
         self.data = pd.DataFrame(np.full((BOARD_SIZE, BOARD_SIZE), initial_val), columns=COLS)
+        self.isflat = flat
         if flat: 
             self.data = self.data.stack()
 
@@ -48,8 +48,6 @@ class Board(abc.ABC):
     
     def __setitem__(self, index, val):
         col, row = index
-        if self.data.loc[row, col] != SquareState.UNKNOWN:
-            raise ValueError("Shooting twice in square {}{}!".format(row, col))
         self.data.loc[row, col] = val
 
     def get_printable(self):

@@ -10,5 +10,11 @@ from src.strategy import *
 
 from src.game import Game, Simulation
 
-g = Game(UserStrategy, RandomStrategy, RandomPlacement, RandomPlacement)
-g.play(show=True)
+
+def main():
+    g = Game(UserStrategy, RandomStrategy, RandomPlacement, RandomPlacement)
+    g.play(show=True)
+
+
+if __name__ == "__main__":
+    main()

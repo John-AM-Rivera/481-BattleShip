@@ -1,11 +1,38 @@
+import time
+import multiprocessing
+
 import pandas as pd
 import numpy as np
-import time
 
 from src import BOARD_SIZE, ROWS, COLS
 from src.player import Player
 from src.strategy import UserStrategy, Strategy, NoStrategy
 from src.placements import PlacementStrategy, NoPlacements
+
+
+
+class Timer:
+
+    def __init__(self):
+        # store time of various components
+        self.total_timers = {}
+        self.active_timers = {}
+
+    def start(self, name):
+        self.active_timers[name] = time.perf_counter()
+
+    def end(self, name):
+        t = time.perf_counter()
+        if name not in self.total_timers:
+            self.total_timers[name] = 0
+        self.total_timers[name] += t - self.active_timers.pop(name)
+
+    def get(self, name):
+        return time.perf_counter() - self.active_timers[name]
+    
+    def merge(self, other):
+        self.total_timers = {k:self.total_timers[k]+other.total_timers[k] for k in self.total_timers}
+
 
 
 class Simulation:
@@ -18,36 +45,41 @@ class Simulation:
         self.placement = placement1
         # counters
         self.turns = []
-        # store time of various components
-        self.total_timers = {}
-        self.active_timers = {}
-    
-    def _start_timer(self, name):
-        self.active_timers[name] = time.perf_counter()
+        self.timings = None
 
-    def _end_timer(self, name):
-        t = time.perf_counter()
-        if name not in self.total_timers:
-            self.total_timers[name] = 0
-        self.total_timers[name] += t - self.active_timers.pop(name)
-
-    def run(self, n):
-        print("Simulating", n, "runs with", self.strategy.__name__, "and", self.placement.__name__)
-        self._start_timer("total")
-        for _ in range(n):
-            # use placeholders for shooter's placements, target's shot strat
-            self._start_timer("init")
+    def _run_one_thread(self, max_secs):
+        timer = Timer()
+        turns = []
+        timer.start("total")
+        while True:
+            timer.start("init")
             shooter = Player(self.strategy, NoPlacements, "shooter")
             target = Player(NoStrategy, self.placement, "target")
-            self._end_timer("init")
-            self._start_timer("play")
+            timer.end("init")
+            timer.start("play")
             while not shooter.has_won():
                 shooter.take_turn_against(target)
-            self._end_timer("play")
-            self.turns.append(shooter.turns)
-        self._end_timer("total")
-        # make sure there are no running timers
-        assert len(self.active_timers) == 0
+            timer.end("play")
+            turns.append(shooter.turns)
+            if timer.get("total") > max_secs:
+                break
+        timer.end("total")
+        return turns, timer.total_timers
+
+    def run(self, max_secs=20):
+        print("Simulating", max_secs, "(ish) seconds of", self.strategy.__name__, "and", self.placement.__name__, "in", multiprocessing.cpu_count(), "processes")
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+            results = pool.map(
+                self._run_one_thread, 
+                [max_secs for _ in range(multiprocessing.cpu_count())],
+                chunksize=1
+            )
+            for turns, timings in results:
+                self.turns += turns
+                if self.timings is None:
+                    self.timings = timings
+                else:
+                    self.timings = {k:self.timings[k]+timings[k] for k in self.timings}
         return self
 
     def metrics(self):
@@ -58,9 +90,9 @@ class Simulation:
             "std_dev_turns": np.std(self.turns),
         }
         metric_vals["time"] = {
-            "cumulative_sec": self.total_timers,
-            "per_game_sec": {k:v/metric_vals["n_simulations"] for k,v in self.total_timers.items()},
-            "per_turn_ms": self.total_timers["play"]/metric_vals["total_turns"]*1000,
+            "cumulative_sec": self.timings,
+            "per_game_sec": {k:v/metric_vals["n_simulations"] for k,v in self.timings.items()},
+            "per_turn_ms": self.timings["play"]/metric_vals["total_turns"]*1000,
         }
         return metric_vals
 

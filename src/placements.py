@@ -1,9 +1,11 @@
-import numpy as np
-import pandas as pd
 import abc
 
-from src import SHIP_LENS, COLS, ROWS, BOARD_SIZE
-from src.board import SquareState, Board
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from src import BOARD_SIZE, COLS, ROWS, SHIP_LENS
+from src.board import Board, SquareState
 
 """
 Base classes & functions
@@ -78,7 +80,7 @@ class ShipPlacement:
         s = ShipPlacement(("A", 3), ("A", 5))
         slice("A":"A"), slice(3:5) = s
         """
-        return iter((slice(self.col_start, self.row_start), slice(self.col_end, self.row_end)))
+        return iter((slice(self.col_start, self.col_end), slice(self.row_start, self.row_end)))
 
     def contains(self, col, row):
         """
@@ -151,20 +153,25 @@ class PlacementStrategy(abc.ABC):
         return board
 
     @classmethod
-    def distribution(cls, n):
+    def show_distribution(cls, n_samples):
         """
         simulate N placements and return the board representing the probability
         distribution of ship placements
         """
-        total_board = None
-        for _ in range(n):
-            board = cls().as_board(flat=True)
-            board = board.map({SquareState.EMPTY: 0, SquareState.SHIP: 1})
-            if total_board is None:
-                total_board = board
+        total = None
+        for _ in range(n_samples):
+            df = cls().as_board(flat=True).data
+            if total is None:
+                total = df
             else:
-                total_board += board
-        return total_board / n
+                total += df
+        final = total.unstack() / n_samples
+        plt.imshow(final, cmap="RdBu_r")
+        plt.colorbar()
+        plt.title(cls.__name__)
+        plt.xticks(np.arange(0, 10), COLS)
+        plt.yticks(np.arange(0, 10), ROWS)
+        plt.show()
 
 
 class NoPlacements(PlacementStrategy):
