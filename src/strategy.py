@@ -8,6 +8,10 @@ import pandas as pd
 from src.board import SquareState, Board, ROWS, COLS
 from src.placements import all_possible_ship_locations
 
+class ShipOrientation:
+    UNKNOWN = -1
+    HORIZONTAL = 0
+    VERTICAL = 1
 
 class Strategy(abc.ABC):
     """
@@ -80,6 +84,62 @@ class RandomStrategy(Strategy):
         # select random element from set
         return self.valid_squares.pop()
 
+
+# Idea:
+# generate some number of possible board placements
+# shoot based on one of the boards based on some heuristic that makes it the most desirable
+#   Based on result on real board, eliminate simulated boards that cannot be the real board
+# once we run out of simulated boards, generate new set of boards that comply with current state of opponent's board
+# continue shooting and generating boards until all opponent ships are shot down.
+
+class SearchHuntStrategy(Strategy):
+    # Bug: strategy seems to be retrying squares that have been tried before
+
+    def __init__(self):
+        self.valid_squares = set(itertools.product(COLS, ROWS))
+        self.possible_ship_squares = []
+        self.current_ship_hits = []
+
+    # opponents_sunk: list of names of ships that have been sunk
+    def choose_shot(self, board, opponents_sunk, name=None):
+        while len(self.possible_ship_squares) > 0:
+            col, row = self.possible_ship_squares.pop()
+            if (col,row) in self.valid_squares:
+                self.valid_squares.remove((col,row))
+                return col, row
+
+        col, row = self.valid_squares.pop()
+        return col, row
+
+    def handle_result(self, col, row, result, sunk, name):
+        if result == SquareState.SHIP:
+            if sunk:
+                self.possible_ship_squares = []
+                self.current_ship_hits = []
+            else:
+                self.current_ship_hits.append((col,row))
+
+                # populate possible_ship_squares with possible positions for the rest of the ship
+                # if first random hit (psq empty) all four adjacent squares should be added to psq
+                if len(self.possible_ship_squares) == 0:
+                    self.possible_ship_squares.append((chr(ord(col)-1),row)) 
+                    self.possible_ship_squares.append((chr(ord(col)+1),row))
+                    self.possible_ship_squares.append((col,row-1))
+                    self.possible_ship_squares.append((col,row+1))
+                else:
+                    # remove any squares in psq that are not in the same row or column as hit
+                    for square in self.possible_ship_squares.copy():
+                        if square[0] != col and square[1] != row:
+                            self.possible_ship_squares.remove(square)
+
+                    # add next possible shot based on current hit
+                    if self.current_ship_hits[0][0] == col: # ship is vertical
+                        # opposite direction to previous shot
+                        step = (row - self.current_ship_hits[0][1]) // (row - self.current_ship_hits[0][1])
+                        self.possible_ship_squares.append((col, row+step))
+                    else:   # ship is horizontal
+                        step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
+                        self.possible_ship_squares.append((chr(ord(col)+step), row))
 
 class EliminationStrategy(Strategy):
 
