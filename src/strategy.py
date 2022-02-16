@@ -141,6 +141,7 @@ class SearchHuntStrategy(Strategy):
                         step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
                         self.possible_ship_squares.append((chr(ord(col)+step), row))
 
+
 class EliminationStrategy(Strategy):
 
     def __init__(self):
