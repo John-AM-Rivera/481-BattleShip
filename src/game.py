@@ -106,6 +106,7 @@ class Simulation:
             shooter.take_turn_against(target)
         im = create_board_blot(shooter.shots.get_data(), ax, animated=True)
         ims.append(im)
+        fig.suptitle(self.strategy.__name__ + f" winning in {len(ims)} turns")
         return animate_boards(ims, fig, interval=interval, save_as=save_as, ipynb=ipynb)
 
 
