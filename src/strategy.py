@@ -93,10 +93,11 @@ class RandomStrategy(Strategy):
 # continue shooting and generating boards until all opponent ships are shot down.
 
 class SearchHuntStrategy(Strategy):
-    # Bug: strategy seems to be retrying squares that have been tried before
+    # Bug: does not account for adjacent ships
 
     def __init__(self):
-        self.valid_squares = set(itertools.product(COLS, ROWS))
+        self.possible_ships = all_possible_ship_locations()
+        self.valid_squares = list(itertools.product(COLS, ROWS))
         self.possible_ship_squares = []
         self.current_ship_hits = []
 
@@ -108,14 +109,19 @@ class SearchHuntStrategy(Strategy):
                 self.valid_squares.remove((col,row))
                 return col, row
 
-        col, row = self.valid_squares.pop()
-        return col, row
+        ship_counts = [
+            sum(ship.contains(*square) for ship in self.possible_ships) for square in self.valid_squares
+        ]
+        # shoot at place with the highest number of possible ship placements
+        best_idx = np.argmax(ship_counts)
+        return self.valid_squares.pop(best_idx)
 
     def handle_result(self, col, row, result, sunk, name):
         if result == SquareState.SHIP:
             if sunk:
                 self.possible_ship_squares = []
                 self.current_ship_hits = []
+                self.possible_ships = {ship for ship in self.possible_ships if not ship.name == name}
             else:
                 self.current_ship_hits.append((col,row))
 
@@ -140,7 +146,8 @@ class SearchHuntStrategy(Strategy):
                     else:   # ship is horizontal
                         step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
                         self.possible_ship_squares.append((chr(ord(col)+step), row))
-
+        elif result == SquareState.EMPTY:
+            self.possible_ships = {ship for ship in self.possible_ships if not ship.contains(col, row)}
 
 class EliminationStrategy(Strategy):
 
