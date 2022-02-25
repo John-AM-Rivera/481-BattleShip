@@ -61,6 +61,7 @@ class UserStrategy(Strategy):
 
     def choose_shot(self, board, opponents_sunk, name=None):
         square = input("{}: Enter a square to fire on (ex: E4): ".format(name))
+        # print(all_possible_ship_locations())
         col, row = square
         row = int(row)
         return col, row
@@ -146,8 +147,71 @@ class SearchHuntStrategy(Strategy):
                     else:   # ship is horizontal
                         step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
                         self.possible_ship_squares.append((chr(ord(col)+step), row))
+<<<<<<< HEAD
         elif result == SquareState.EMPTY:
             self.possible_ships = {ship for ship in self.possible_ships if not ship.contains(col, row)}
+=======
+
+<<<<<<< HEAD
+class CSPStrategy(Strategy):
+    # Bug: strategy seems to be retrying squares that have been tried before
+
+    def __init__(self):
+        self.valid_squares = list(itertools.product(COLS, ROWS))
+        self.possible_ship_squares = []
+        self.current_ship_hits = []
+
+    # opponents_sunk: list of names of ships that have been sunk
+    def choose_shot(self, board, opponents_sunk, name=None):
+        while len(self.possible_ship_squares) > 0:
+            col, row = self.possible_ship_squares.pop()
+            if (col,row) in self.valid_squares:
+                self.valid_squares.remove((col,row))
+                return col, row
+
+        self.shave_valid_squares(opponents_sunk)
+        col, row = self.valid_squares.pop()
+        return col, row
+
+    def shave_valid_squares(self, opponents_sunk):
+        #TODO create a different shaving algorithm
+        #previously I used the possible ship set to decrease the available squares 
+        #I need to re assess the logic - John
+        return
+
+    def handle_result(self, col, row, result, sunk, name):
+        if result == SquareState.SHIP:
+            if sunk:
+                self.possible_ship_squares = []
+                self.current_ship_hits = []
+            else:
+                self.current_ship_hits.append((col,row))
+
+                # populate possible_ship_squares with possible positions for the rest of the ship
+                # if first random hit (psq empty) all four adjacent squares should be added to psq
+                if len(self.possible_ship_squares) == 0:
+                    self.possible_ship_squares.append((chr(ord(col)-1),row)) 
+                    self.possible_ship_squares.append((chr(ord(col)+1),row))
+                    self.possible_ship_squares.append((col,row-1))
+                    self.possible_ship_squares.append((col,row+1))
+                else:
+                    # remove any squares in psq that are not in the same row or column as hit
+                    for square in self.possible_ship_squares.copy():
+                        if square[0] != col and square[1] != row:
+                            self.possible_ship_squares.remove(square)
+
+                    # add next possible shot based on current hit
+                    if self.current_ship_hits[0][0] == col: # ship is vertical
+                        # opposite direction to previous shot
+                        step = (row - self.current_ship_hits[0][1]) // (row - self.current_ship_hits[0][1])
+                        self.possible_ship_squares.append((col, row+step))
+                    else:   # ship is horizontal
+                        step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
+                        self.possible_ship_squares.append((chr(ord(col)+step), row))
+
+=======
+>>>>>>> 50b5694f2504a9059d9def6d442d764d8edfa09b
+>>>>>>> 16b073b8c9a4fe27803bbb84c75542dd6d71ca40
 
 class EliminationStrategy(Strategy):
 
