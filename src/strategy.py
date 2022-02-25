@@ -142,6 +142,7 @@ class SearchHuntStrategy(Strategy):
                         step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
                         self.possible_ship_squares.append((chr(ord(col)+step), row))
 
+<<<<<<< HEAD
 class CSPStrategy(Strategy):
     # Bug: strategy seems to be retrying squares that have been tried before
 
@@ -198,6 +199,8 @@ class CSPStrategy(Strategy):
                         step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
                         self.possible_ship_squares.append((chr(ord(col)+step), row))
 
+=======
+>>>>>>> 50b5694f2504a9059d9def6d442d764d8edfa09b
 
 class EliminationStrategy(Strategy):
 

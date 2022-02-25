@@ -127,3 +127,14 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+
+
+# OS files
+.DS_Store
+
+
+# temporary
+.ipynb_temp.mp4
+temp.py

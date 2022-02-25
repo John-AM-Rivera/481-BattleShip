@@ -4,14 +4,23 @@ import multiprocessing
 import pandas as pd
 import numpy as np
 
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+
 from src import BOARD_SIZE, ROWS, COLS
 from src.player import Player
 from src.strategy import UserStrategy, Strategy, NoStrategy
 from src.placements import PlacementStrategy, NoPlacements
+from src.board import Board, SquareState
+
+from src.utils import create_board_blot, animate_boards
 
 
 
 class Timer:
+    """
+    class for keeping track of time in simulations
+    """
 
     def __init__(self):
         # store time of various components
@@ -81,6 +90,26 @@ class Simulation:
                 else:
                     self.timings = {k:self.timings[k]+timings[k] for k in self.timings}
         return self
+
+    def display_one(self, interval=50, save_as=None, ipynb=False):
+        """
+        args:
+            interval, in ms
+        """
+        shooter = Player(self.strategy, NoPlacements, "shooter")
+        target = Player(NoStrategy, self.placement, "target")
+        fig, ax = plt.subplots()
+        ims = []
+        while not shooter.has_won():
+            im = create_board_blot(shooter.shots.get_data(), ax, animated=True)
+            ims.append(im)
+            shooter.take_turn_against(target)
+        im = create_board_blot(shooter.shots.get_data(), ax, animated=True)
+        ims.append(im)
+        fig.suptitle(self.strategy.__name__ + f" winning in {len(ims)} turns")
+        return animate_boards(ims, fig, interval=interval, save_as=save_as, ipynb=ipynb)
+
+
 
     def metrics(self):
         metric_vals = {

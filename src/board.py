@@ -16,6 +16,12 @@ class SquareState:
         SHIP: "X",
     }
 
+    MAP_TO_NAME = {
+        UNKNOWN: "unknown",
+        EMPTY: "empty",
+        SHIP: "hit",
+    }
+
     def __init__(self):
         raise NotImplementedError("You shouldn't be initializing an instance of this. Just use SquareState.EMPTY instead of SquareState().EMPTY, for example")
 
@@ -50,9 +56,18 @@ class Board():
         col, row = index
         self.data.loc[row, col] = val
 
-    def get_printable(self):
+    def get_data(self):
         """
         get data as the standard square board
+        """
+        if self.isflat:
+            return self.data.unstack()
+        else:
+            return self.data
+
+    def get_printable(self):
+        """
+        get data as the standard square board with strings as elems instead of ints
         """
         if self.isflat:
             data = self.data
