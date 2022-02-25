@@ -12,7 +12,7 @@ from src.game import Game, Simulation
 
 
 def main():
-    g = Game(UserStrategy, SearchHuntStrategy, RandomPlacement, RandomPlacement)
+    g = Game(UserStrategy, CSPStrategy, RandomPlacement, RandomPlacement)
     g.play(show=True)
 
 

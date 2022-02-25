@@ -12,7 +12,7 @@ class SquareState:
 
     MAP_TO_STR = {
         UNKNOWN: ".",
-        EMPTY: "-",
+        EMPTY: "O",
         SHIP: "X",
     }
 
