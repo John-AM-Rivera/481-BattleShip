@@ -147,12 +147,9 @@ class SearchHuntStrategy(Strategy):
                     else:   # ship is horizontal
                         step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
                         self.possible_ship_squares.append((chr(ord(col)+step), row))
-<<<<<<< HEAD
         elif result == SquareState.EMPTY:
             self.possible_ships = {ship for ship in self.possible_ships if not ship.contains(col, row)}
-=======
 
-<<<<<<< HEAD
 class CSPStrategy(Strategy):
     # Bug: strategy seems to be retrying squares that have been tried before
 
@@ -208,10 +205,6 @@ class CSPStrategy(Strategy):
                     else:   # ship is horizontal
                         step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
                         self.possible_ship_squares.append((chr(ord(col)+step), row))
-
-=======
->>>>>>> 50b5694f2504a9059d9def6d442d764d8edfa09b
->>>>>>> 16b073b8c9a4fe27803bbb84c75542dd6d71ca40
 
 class EliminationStrategy(Strategy):
 
