@@ -10,7 +10,7 @@ SHIP_LENS = {
     "battleship": 4,
     "submarine": 3,
     "destroyer": 3, 
-    "patrol boat": 2
+    "patrolboat": 2
 }
 
 # rows are A,B,C...

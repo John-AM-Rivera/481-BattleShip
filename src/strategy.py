@@ -1,12 +1,15 @@
 import abc
-import itertools
 import random
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
-from src.board import SquareState, Board, ROWS, COLS
+from src import ROWS, COLS
+from src.board import SquareState, Board
 from src.placements import all_possible_ship_locations
+from src.utils import get_all_valid_squares, plot_board, plot_grid_data
+
 
 class ShipOrientation:
     UNKNOWN = -1
@@ -34,6 +37,12 @@ class Strategy(abc.ABC):
             row: int (ex: 4)
         """
         ...
+
+    def handle_simulated_shot(self, col, row):
+        """
+        handle result chosen by another method (ie, not this classes's own choose_shot method)
+        """
+        raise NotImplementedError()
 
     def handle_result(self, col, row, result, sunk, name):
         """
@@ -78,7 +87,7 @@ class UserStrategy(Strategy):
 class RandomStrategy(Strategy):
 
     def __init__(self):
-        self.valid_squares = set(itertools.product(COLS, ROWS))
+        self.valid_squares = set(get_all_valid_squares())
 
     def choose_shot(self, board, opponents_sunk, name=None):
         # select random element from set
@@ -96,7 +105,7 @@ class SearchHuntStrategy(Strategy):
     # Bug: strategy seems to be retrying squares that have been tried before
 
     def __init__(self):
-        self.valid_squares = set(itertools.product(COLS, ROWS))
+        self.valid_squares = set(get_all_valid_squares())
         self.possible_ship_squares = []
         self.current_ship_hits = []
 
@@ -146,7 +155,7 @@ class EliminationStrategy(Strategy):
 
     def __init__(self):
         self.possible_ships = all_possible_ship_locations()
-        self.valid_squares = list(itertools.product(COLS, ROWS))
+        self.valid_squares = get_all_valid_squares()
 
     def choose_shot(self, board, opponents_sunk, name=None):
         ship_counts = [
@@ -164,3 +173,51 @@ class EliminationStrategy(Strategy):
         if sunk:
             self.possible_ships = {ship for ship in self.possible_ships if not ship.name == name}
 
+
+class EliminationStrategyV2(Strategy):
+    """
+    faster version of the above
+    """
+    
+    def __init__(self):
+        possible_ships = all_possible_ship_locations()
+        # dict( (col, row) => set(ShipPlacement) )
+        self.squares_to_ships = {
+            square: {ship for ship in possible_ships if ship.contains(*square)} for square in get_all_valid_squares()
+        }
+
+
+    def choose_shot(self, board, opponents_sunk, name=None):
+        # shoot at place with the highest number of possible ship placements
+        # self.show_distribution(board)
+        best_square = max(self.squares_to_ships,
+                            key=lambda x: len(self.squares_to_ships[x]) )
+        return best_square
+    
+    def handle_result(self, col, row, result, sunk, name):
+        # invalidate ships on a miss
+        if result == SquareState.EMPTY:
+            # get ships that are invalidated
+            ships_to_remove = self.squares_to_ships[(col, row)]
+            # remove invalid ships
+            for square,shipset in self.squares_to_ships.items():
+                shipset = {x for x in shipset if x not in ships_to_remove}
+                self.squares_to_ships[square] = shipset
+
+        # remove the invalidated square
+        del self.squares_to_ships[(col, row)]
+        # remove sunk ship possibilities
+        if sunk:
+            self.squares_to_ships = {
+                square: {ship for ship in shipset if ship.name != name} for square,shipset in self.squares_to_ships.items()
+            }
+
+    def show_distribution(self, board):
+        maxval = max([len(x) for x in self.squares_to_ships.values()])
+        data = pd.Series(self.squares_to_ships.values(), index=self.squares_to_ships.keys())
+        data = data.apply(lambda x: len(x))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+        final = data.unstack().T
+        plot_grid_data(final, ax1, title="Possible Ships Count", vmin=0, vmax=34)
+        board.plot(ax2)
+        plt.show()
