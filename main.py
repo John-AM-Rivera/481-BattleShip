@@ -16,7 +16,7 @@ def main():
     # RandomPlacement.show_distribution(1000)
 
     # simulate elimination strategy against random placement
-    sim = Simulation(SearchHuntStrategy, RandomPlacement).run(max_secs=5)
+    sim = Simulation(SearchHuntStrategyV2, RandomPlacement).run(max_secs=5)
     pprint(sim.metrics())
 
     # s = Simulation(EliminationStrategy, RandomPlacement).run(3)

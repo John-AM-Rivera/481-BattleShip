@@ -4,6 +4,7 @@ import random
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import itertools
 
 from src import ROWS, COLS
 from src.board import SquareState, Board
@@ -158,6 +159,78 @@ class SearchHuntStrategy(Strategy):
                         self.possible_ship_squares.append((chr(ord(col)+step), row))
         elif result == SquareState.EMPTY:
             self.possible_ships = {ship for ship in self.possible_ships if not ship.contains(col, row)}
+
+
+# Uses EliminationStrategyV2
+class SearchHuntStrategyV2(Strategy):
+    # Bug: does not account for adjacent ships
+
+    def __init__(self):
+        possible_ships = all_possible_ship_locations()
+        # dict( (col, row) => set(ShipPlacement) )
+        self.squares_to_ships = {
+            square: {ship for ship in possible_ships if ship.contains(*square)} for square in get_all_valid_squares()
+        }
+        self.possible_ship_squares = []
+        self.current_ship_hits = []
+
+    # opponents_sunk: list of names of ships that have been sunk
+    def choose_shot(self, board, opponents_sunk, name=None):
+        while len(self.possible_ship_squares) > 0:
+            col, row = self.possible_ship_squares.pop()
+            if (col,row) in self.squares_to_ships:
+                return col, row
+
+        # shoot at place with the highest number of possible ship placements
+        # self.show_distribution(board)
+        best_square = max(self.squares_to_ships,
+                            key=lambda x: len(self.squares_to_ships[x]) )
+        return best_square
+
+    def handle_result(self, col, row, result, sunk, name):
+        if result == SquareState.SHIP:
+            if sunk:
+                self.possible_ship_squares = []
+                self.current_ship_hits = []
+                self.squares_to_ships = {
+                    square: {ship for ship in shipset if ship.name != name} for square,shipset in self.squares_to_ships.items()
+                }
+            else:
+                self.current_ship_hits.append((col,row))
+
+                # populate possible_ship_squares with possible positions for the rest of the ship
+                # if first random hit (psq empty) all four adjacent squares should be added to psq
+                if len(self.possible_ship_squares) == 0:
+                    self.possible_ship_squares.append((chr(ord(col)-1),row)) 
+                    self.possible_ship_squares.append((chr(ord(col)+1),row))
+                    self.possible_ship_squares.append((col,row-1))
+                    self.possible_ship_squares.append((col,row+1))
+                else:
+                    # remove any squares in psq that are not in the same row or column as hit
+                    for square in self.possible_ship_squares.copy():
+                        if square[0] != col and square[1] != row:
+                            self.possible_ship_squares.remove(square)
+
+                    # add next possible shot based on current hit
+                    if self.current_ship_hits[0][0] == col: # ship is vertical
+                        # opposite direction to previous shot
+                        step = (row - self.current_ship_hits[0][1]) // (row - self.current_ship_hits[0][1])
+                        self.possible_ship_squares.append((col, row+step))
+                    else:   # ship is horizontal
+                        step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
+                        self.possible_ship_squares.append((chr(ord(col)+step), row))
+        # invalidate ships on a miss
+        elif result == SquareState.EMPTY:
+            # get ships that are invalidated
+            ships_to_remove = self.squares_to_ships[(col, row)]
+            # remove invalid ships
+            for square,shipset in self.squares_to_ships.items():
+                shipset = {x for x in shipset if x not in ships_to_remove}
+                self.squares_to_ships[square] = shipset
+
+        # remove the invalidated square
+        del self.squares_to_ships[(col, row)]
+
 
 class CSPStrategy(Strategy):
     # Bug: strategy seems to be retrying squares that have been tried before
