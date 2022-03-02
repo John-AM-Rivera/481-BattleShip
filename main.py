@@ -45,6 +45,7 @@ def main():
     shoot0, placement0 = get_strats(*ARGS.p0)
     shoot1, placement1 = get_strats(*ARGS.p1)
     game = Game(shoot0, shoot1, placement0, placement1)
+    print(game)
 
     print("P0 Ships:")
     print(game.p0.placements.as_board().get_printable())

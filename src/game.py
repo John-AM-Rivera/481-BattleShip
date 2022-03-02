@@ -140,10 +140,18 @@ class Game:
     """
 
     def __init__(self, strategy0, strategy1, placement0, placement1):
-        self.p0 = Player(strategy0, placement0, name="P1")
-        self.p1 = Player(strategy1, placement1, name="P2")
+        self.p0 = Player(strategy0, placement0, name="P0")
+        self.p1 = Player(strategy1, placement1, name="P1")
         self.divider = pd.DataFrame({" ": ROWS})
     
+    def __repr__(self):
+        result = "Game between:\n"
+        result += "  player 0: {}, {}\n".format(self.p0.strategy.__class__.__name__,
+                    self.p0.placements.__class__.__name__)
+        result += "  player 1: {}, {}\n".format(self.p1.strategy.__class__.__name__,
+                    self.p1.placements.__class__.__name__)
+        return result
+
     def play(self, show=False):
         """
         returns:
