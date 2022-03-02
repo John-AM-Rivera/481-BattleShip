@@ -2,8 +2,10 @@ import numpy as np
 import pandas as pd
 import abc
 
-from src import BOARD_SIZE, ROWS, COLS
+import matplotlib.pyplot as plt
 
+from src import BOARD_SIZE, ROWS, COLS
+from src.utils import plot_board
 
 class SquareState:
     UNKNOWN = -1
@@ -12,7 +14,7 @@ class SquareState:
 
     MAP_TO_STR = {
         UNKNOWN: ".",
-        EMPTY: "O",
+        EMPTY: "-",
         SHIP: "X",
     }
 
@@ -42,7 +44,7 @@ class Board():
         """
         self.data = pd.DataFrame(np.full((BOARD_SIZE, BOARD_SIZE), initial_val), columns=COLS)
         self.isflat = flat
-        if flat: 
+        if flat:
             self.data = self.data.stack()
 
     def __repr__(self):
@@ -56,14 +58,16 @@ class Board():
         col, row = index
         self.data.loc[row, col] = val
 
-    def get_data(self):
+    def get_data(self, flat=False):
         """
-        get data as the standard square board
+        get data as the standard square board, or flattened if flat=True
         """
-        if self.isflat:
+        if self.isflat == flat:
+            return self.data
+        elif self.isflat:
             return self.data.unstack()
         else:
-            return self.data
+            return self.data.stack()
 
     def get_printable(self):
         """
@@ -75,3 +79,9 @@ class Board():
             data = self.data.stack()
         data = data.map(SquareState.MAP_TO_STR)
         return data.unstack()
+
+    def plot(self, ax=None):
+        plot_board(self, ax=ax)
+        plt.show()
+
+

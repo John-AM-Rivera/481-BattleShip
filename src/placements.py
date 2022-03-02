@@ -1,5 +1,4 @@
 import abc
-import random
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,6 +6,7 @@ import pandas as pd
 
 from src import BOARD_SIZE, COLS, ROWS, SHIP_LENS
 from src.board import Board, SquareState
+from src.utils import plot_grid_data
 
 """
 Base classes & functions
@@ -59,21 +59,21 @@ class ShipPlacement:
         self.name = name
         self.hits = 0
         self.length = 1 + (ord(col_end) - ord(col_start)) + (row_end - row_start)
+        self._id_attrs = (self.name, self.col_start, self.col_end, self.row_start, self.row_end)
     
     def is_sunk(self):
         return self.hits == self.length
 
     def __repr__(self):
-        return "({}, | {}{} to {}{})".format(self.name.capitalize(), self.col_start, self.row_start, self.col_end, self.row_end)
+        return "{}({}{}-{}{})".format(self.name.capitalize(), self.col_start, self.row_start, self.col_end, self.row_end)
 
     def __eq__(self, other):
         if not isinstance(other, ShipPlacement):
             return False
-        return self.name == other.name and self.col_start == other.col_start and self.col_end == other.col_end and \
-            self.row_start == other.row_start and self.row_end == other.row_end
+        return self._id_attrs == other._id_attrs
 
     def __hash__(self):
-        return hash((self.name, self.col_start, self.col_end, self.row_start, self.row_end))
+        return hash(self._id_attrs)
 
     def __iter__(self):
         """
@@ -92,8 +92,6 @@ class ShipPlacement:
     def check_hit(self, col, row):
         """
         return whether this column and row are within a ship's extent
-        args:
-            loc: tuple(col, row)
         """
         hit = self.contains(col, row)
         if hit:
@@ -167,11 +165,7 @@ class PlacementStrategy(abc.ABC):
             else:
                 total += df
         final = total.unstack() / n_samples
-        plt.imshow(final, cmap="RdBu_r")
-        plt.colorbar()
-        plt.title(cls.__name__)
-        plt.xticks(np.arange(0, 10), COLS)
-        plt.yticks(np.arange(0, 10), ROWS)
+        plot_grid_data(final, title=cls.__name__ + f" distribution ({n_samples} samples)")
         plt.show()
 
 

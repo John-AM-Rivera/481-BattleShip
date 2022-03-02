@@ -39,9 +39,6 @@ class Timer:
     def get(self, name):
         return time.perf_counter() - self.active_timers[name]
     
-    def merge(self, other):
-        self.total_timers = {k:self.total_timers[k]+other.total_timers[k] for k in self.total_timers}
-
 
 
 class Simulation:
@@ -54,7 +51,7 @@ class Simulation:
         self.placement = placement1
         # counters
         self.turns = []
-        self.timings = None
+        self.timings = None # Timer()
 
     def _run_one_thread(self, max_secs):
         timer = Timer()
@@ -75,8 +72,21 @@ class Simulation:
         timer.end("total")
         return turns, timer.total_timers
 
+    def _update_metrics(self, turns, timings):
+        self.turns += turns
+        if self.timings is None:
+            self.timings = timings
+        else:
+            self.timings = {k:self.timings[k]+timings[k] for k in self.timings}
+
+    def run_one(self):
+        turns, timings = self._run_one_thread(max_secs=0)
+        self._update_metrics(turns, timings)
+        return self
+
     def run(self, max_secs=20):
-        print("Simulating", max_secs, "(ish) seconds of", self.strategy.__name__, "and", self.placement.__name__, "in", multiprocessing.cpu_count(), "processes")
+        print("Simulating", max_secs, "(ish) seconds of", self.strategy.__name__, 
+            "and", self.placement.__name__, "in", multiprocessing.cpu_count(), "processes")
         with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
             results = pool.map(
                 self._run_one_thread, 
@@ -84,11 +94,7 @@ class Simulation:
                 chunksize=1
             )
             for turns, timings in results:
-                self.turns += turns
-                if self.timings is None:
-                    self.timings = timings
-                else:
-                    self.timings = {k:self.timings[k]+timings[k] for k in self.timings}
+                self._update_metrics(turns, timings)
         return self
 
     def display_one(self, interval=50, save_as=None, ipynb=False):
@@ -108,7 +114,6 @@ class Simulation:
         ims.append(im)
         fig.suptitle(self.strategy.__name__ + f" winning in {len(ims)} turns")
         return animate_boards(ims, fig, interval=interval, save_as=save_as, ipynb=ipynb)
-
 
 
     def metrics(self):
@@ -135,10 +140,18 @@ class Game:
     """
 
     def __init__(self, strategy0, strategy1, placement0, placement1):
-        self.p0 = Player(strategy0, placement0, name="P1")
-        self.p1 = Player(strategy1, placement1, name="P2")
+        self.p0 = Player(strategy0, placement0, name="P0")
+        self.p1 = Player(strategy1, placement1, name="P1")
         self.divider = pd.DataFrame({" ": ROWS})
     
+    def __repr__(self):
+        result = "Game between:\n"
+        result += "  player 0: {}, {}\n".format(self.p0.strategy.__class__.__name__,
+                    self.p0.placements.__class__.__name__)
+        result += "  player 1: {}, {}\n".format(self.p1.strategy.__class__.__name__,
+                    self.p1.placements.__class__.__name__)
+        return result
+
     def play(self, show=False):
         """
         returns:
@@ -166,3 +179,10 @@ class Game:
     def show_boards(self):
         print("Player zeros's shots:            Player ones's shots:")
         print(pd.concat((self.p0.shots.get_printable(), self.divider, self.p1.shots.get_printable()), axis=1))
+
+
+# class ManualTest:
+
+#     def __init__(self, strategy, placements):
+
+
