@@ -1,6 +1,9 @@
+from tqdm import tqdm
+import os
+import pickle
+
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 
@@ -105,4 +108,24 @@ class BoardGenerator(keras.utils.Sequence):
 
     def __len__(self):
         return self.batches_per_epoch
+
+
+def data_generate_or_load():
+    names = ["train", "val", "test"]
+    gens = []
+    if os.path.exists("data/train.pickle"):
+        for name in names:
+            with open(f"data/{name}.pickle", "rb") as f:
+                gens.append(pickle.load(f))
+    else:
+        train_gen = BoardGenerator(RandomPlacement, 32, 1000)
+        val_data = BoardGenerator(RandomPlacement, 1000, 1)[0] # loads one big batch
+        test_gen = BoardGenerator(RandomPlacement, 1, 1000)
+        gens = [train_gen, val_data, test_gen]
+        os.makedirs("data", exist_ok=True)
+        for i,name in enumerate(names):
+            with open(f"data/{name}.pickle", "wb") as f:
+                pickle.dump(gens[i], f)
+    return gens
+
 

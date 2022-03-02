@@ -17,7 +17,8 @@ from src.player import Player
 from src.strategy import RandomStrategy, NoStrategy
 from src.placements import all_possible_ship_locations, RandomPlacement, NoPlacements
 
-from src.nn_data_gen import BoardGenerator
+from src.nn_data_gen import BoardGenerator, data_generate_or_load
+import src.greedy_nn_eval
 
 def build_model():
     """
@@ -32,6 +33,11 @@ def build_model():
     grid = layers.Reshape((BOARD_SIZE,BOARD_SIZE,1))(grid_input)
     sunk_vec = layers.Reshape((1,1,len(SHIP_LENS)))(sunk_vec_input)
 
+    # expand sunk vec
+    sunk_vec = layers.Conv2D(32, 1)(sunk_vec)
+    sunk_vec = layers.BatchNormalization()(sunk_vec)
+    sunk_vec = layers.Activation("relu")(sunk_vec)
+
     # make 16x16
     grid = layers.ZeroPadding2D(3)(grid)
 
@@ -42,17 +48,18 @@ def build_model():
     x = layers.BatchNormalization()(x)
     x = layers.Activation("relu")(x)
 
-    previous_block_activation = x  # Set aside residual
+    # skip connection outputs
+    down_outputs = []
+    # Set aside residual
+    previous_block_activation = x 
 
     # Blocks 1, 2, 3 are identical apart from the feature depth.
-    for filters in [32, 64, 64, 128]:
+    for filters in [16, 32, 32, 64]:
         x = layers.Activation("relu")(x)
         x = layers.SeparableConv2D(filters, 3, padding="same")(x)
         x = layers.BatchNormalization()(x)
 
-        # x = layers.Activation("relu")(x)
-        # x = layers.SeparableConv2D(filters, 3, padding="same")(x)
-        # x = layers.BatchNormalization()(x)
+        down_outputs.append(x)
 
         x = layers.MaxPooling2D(3, strides=2, padding="same")(x)
 
@@ -70,51 +77,26 @@ def build_model():
 
     ### [Second half of the network: upsampling inputs] ###
 
-    for filters in [128, 64, 64, 32]:
+    for filters in [128, 64, 32, 32]:
         x = layers.Activation("relu")(x)
         x = layers.Conv2DTranspose(filters, 3, padding="same")(x)
         x = layers.BatchNormalization()(x)
 
-        # x = layers.Activation("relu")(x)
-        # x = layers.Conv2DTranspose(filters, 3, padding="same")(x)
-        # x = layers.BatchNormalization()(x)
-
         x = layers.UpSampling2D(2)(x)
 
-        # Project residual
-        residual = layers.UpSampling2D(2)(previous_block_activation)
-        residual = layers.Conv2D(filters, 1, padding="same")(residual)
-        x = layers.add([x, residual])  # Add back residual
-        previous_block_activation = x  # Set aside next residual
+        # Skip connection residual
+        x = layers.Concatenate(axis=-1)([x, down_outputs.pop()])  # Add back residual
 
     # crop to correct size
-    x = x[:,3:-3,3:-3]
+    x = layers.Cropping2D(3)(x)
 
     # Add a per-pixel prediction layer
-    outputs = layers.Conv2D(1, 1, activation="sigmoid", padding="same")(x)
+    outputs = layers.Conv2D(1, 3, activation="sigmoid", padding="same")(x)
 
     # Define the model
     model = keras.Model([grid_input, sunk_vec_input], outputs)
     return model
 
-
-def data_generate_or_load():
-    names = ["train", "val", "test"]
-    gens = []
-    if os.path.exists("data/train.pickle"):
-        for name in names:
-            with open(f"data/{name}.pickle", "rb") as f:
-                gens.append(pickle.load(f))
-    else:
-        train_gen = BoardGenerator(RandomPlacement, 32, 1000)
-        val_data = BoardGenerator(RandomPlacement, 1000, 1)[0] # loads one big batch
-        test_gen = BoardGenerator(RandomPlacement, 1, 1000)
-        gens = [train_gen, val_data, test_gen]
-        os.makedirs("data", exist_ok=True)
-        for i,name in enumerate(names):
-            with open(f"data/{name}.pickle", "wb") as f:
-                pickle.dump(gens[i], f)
-    return gens
 
 
 def main():
@@ -130,25 +112,34 @@ def main():
     model = build_model()
     model.summary()
 
+    try:
+        keras.utils.plot_model(model, "model.png", show_shapes=True)
+    except Exception as e:
+        print("Can't plot model:", e)
+
     callback_list = [
         callbacks.EarlyStopping(patience=6, verbose=1),
         callbacks.ModelCheckpoint("greedy_model.h5", save_best_only=True, verbose=1),
-        callbacks.ReduceLROnPlateau(factor=0.1, patience=4, verbose=1)
+        callbacks.ReduceLROnPlateau(factor=0.1, patience=3, verbose=1)
     ]
 
     model.compile(
         loss="binary_crossentropy",
-        optimizer=optimizers.Adam(0.01),
+        optimizer=optimizers.Adam(0.005),
         metrics=["mse"],
     )
-    model.fit(
-        train_gen,
-        validation_data=val_data,
-        epochs=50,
-        callbacks=callback_list
-    )
+    try:
+        model.fit(
+            train_gen,
+            validation_data=val_data,
+            epochs=50,
+            callbacks=callback_list
+        )
+    except KeyboardInterrupt:
+        print("Training ended manually")
 
-    model.evaluate(test_gen)
+    # evaluate
+    greedy_nn_eval.main()
 
     
 

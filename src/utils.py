@@ -17,7 +17,8 @@ def get_all_valid_squares():
 
 
 SQUARESTATE_CMAP = plt.cm.get_cmap('RdBu_r', 3)
-STANDARD_CMAP = 'RdBu_r'
+CMAP_1s = 'RdBu_r'
+CMAP_01 = "Reds"
 
 
 def plot_board(board, ax=None, title="Board State"):
@@ -35,7 +36,7 @@ def plot_board(board, ax=None, title="Board State"):
     create_board_blot(data, ax, title=title)
 
 
-def plot_grid_data(data, ax=None, title=None, cmap=STANDARD_CMAP, **kwargs):
+def plot_grid_data(data, ax=None, title=None, cmap=None, **kwargs):
     """
     args:
         data: pd.DataFrame in the shape of a board, or a dict in the form {(col,row): value}
@@ -48,6 +49,15 @@ def plot_grid_data(data, ax=None, title=None, cmap=STANDARD_CMAP, **kwargs):
         ax = plt.gca()
     if isinstance(data, dict):
         data = pd.DataFrame(data.values(), index=data.keys()).unstack().T
+    if cmap is None:
+        if data.min() >= 0:
+            cmap = CMAP_01
+            kwargs.setdefault("vmin", 0)
+            kwargs.setdefault("vmin", 1)
+        else:
+            cmap = CMAP_1s
+            kwargs.setdefault("vmin", -1)
+            kwargs.setdefault("vmax", 1)
     cmap = plt.cm.get_cmap(cmap)
     cmap.set_bad('gray')
     plt.imshow(data, cmap=cmap, **kwargs)
