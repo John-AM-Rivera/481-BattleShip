@@ -4,6 +4,7 @@ import random
 
 import numpy as np
 import pandas as pd
+from src import BOTTOM_3_BOARD
 
 from src.board import SquareState, Board, ROWS, COLS
 from src.placements import all_possible_ship_locations
@@ -18,7 +19,7 @@ class Strategy(abc.ABC):
     interface that other strategies should implement
     """
 
-    # attribute that determines whether the board should be flattened with
+    # attribute that deter8mines whether the board should be flattened with
     # DataFrame.stack(). Flat has faster lookup than square, so should be preferred
     require_square_board = False
 
@@ -59,7 +60,16 @@ concrete strategies
 
 class UserStrategy(Strategy):
 
+    def __init__(self):
+        self.set_squares = BOTTOM_3_BOARD.copy()
+        # print(self.set_squares)
+        self.moves = 0
+
     def choose_shot(self, board, opponents_sunk, name=None):
+        if len(self.set_squares) > 0:
+            # print("Moves " + str(self.moves) + "| " + str(len(self.set_squares)))
+            # print(self.set_squares)
+            return self.create_Test_Condition()
         square = input("{}: Enter a square to fire on (ex: E4): ".format(name))
         # print(all_possible_ship_locations())
         col, row = square
@@ -74,6 +84,11 @@ class UserStrategy(Strategy):
                 print(f"{col}{row}: Hit!")
         else:
             print(f"{col}{row}: Miss.")
+
+    def create_Test_Condition(self):
+        location = self.set_squares.pop()
+        self.moves += 1
+        return location
 
 
 class RandomStrategy(Strategy):
@@ -142,26 +157,21 @@ class SearchHuntStrategy(Strategy):
                         step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
                         self.possible_ship_squares.append((chr(ord(col)+step), row))
 
-<<<<<<< HEAD
 class CSPStrategy(Strategy):
     # Bug: strategy seems to be retrying squares that have been tried before
 
     def __init__(self):
+        self.set_squares = BOTTOM_3_BOARD.copy()
+        print(self.set_squares)
+        self.moves = 0
         self.valid_squares = list(itertools.product(COLS, ROWS))
         self.possible_ship_squares = []
         self.current_ship_hits = []
 
     # opponents_sunk: list of names of ships that have been sunk
     def choose_shot(self, board, opponents_sunk, name=None):
-        while len(self.possible_ship_squares) > 0:
-            col, row = self.possible_ship_squares.pop()
-            if (col,row) in self.valid_squares:
-                self.valid_squares.remove((col,row))
-                return col, row
-
-        self.shave_valid_squares(opponents_sunk)
-        col, row = self.valid_squares.pop()
-        return col, row
+        if len(self.set_squares) > 0:
+            return self.create_Test_Condition()
 
     def shave_valid_squares(self, opponents_sunk):
         #TODO create a different shaving algorithm
@@ -199,8 +209,10 @@ class CSPStrategy(Strategy):
                         step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
                         self.possible_ship_squares.append((chr(ord(col)+step), row))
 
-=======
->>>>>>> 50b5694f2504a9059d9def6d442d764d8edfa09b
+    def create_Test_Condition(self):
+        location = self.set_squares.pop()
+        self.moves += 1
+        return location
 
 class EliminationStrategy(Strategy):
 

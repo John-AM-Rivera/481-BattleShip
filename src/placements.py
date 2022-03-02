@@ -220,3 +220,22 @@ class TestPlacement_1(PlacementStrategy):
             selected.append(ship)
             possible = [x for x in possible if not x.overlaps(ship)]
         return selected
+
+class adjacentPlacement_1(PlacementStrategy):
+
+    def generate_placements(self):
+        random.seed(8008135)
+        testBoard = [ShipPlacement('J', 8, 'J', 9, "patrol boat"), \
+                     ShipPlacement('B', 5, 'B', 7, "destroyer"), \
+                     ShipPlacement('C', 2, 'E', 2, "submarine"), \
+                     ShipPlacement('D', 7, 'G', 7, "battleship"), \
+                     ShipPlacement('E', 6, 'I', 6, "carrier")]
+        possible = set(testBoard)
+        selected = []
+        for name in SHIP_LENS.keys():
+            possible_subset = [x for x in possible if x.name == name]
+            idx = np.random.randint(len(possible_subset))
+            ship = possible_subset[idx]
+            selected.append(ship)
+            possible = [x for x in possible if not x.overlaps(ship)]
+        return selected

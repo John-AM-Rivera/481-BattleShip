@@ -72,8 +72,10 @@ class Tests(unittest.TestCase):
     def test_dimension_reduction(self):
         print("Running CSP")
         random.seed(8008135)
-        g = Game(UserStrategy, CSPStrategy, TestPlacement_1, TestPlacement_1)
+        g = Game(CSPStrategy, UserStrategy, TestPlacement_1, TestPlacement_1)
         g.play(show=True)
+        # g = Game(EliminationStrategy, UserStrategy, TestPlacement_1, TestPlacement_1)
+        # g.play(show=True)
         # sim = Simulation(EliminationStrategy, TestPlacement_1).run(max_secs=5)
         # sim1 = Simulation(SearchHuntStrategy, TestPlacement_1).run(max_secs=5)
         # print(sim1.metrics())
