@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from src import ROWS, COLS
+from src import ROWS, COLS, SHIP_LENS
 from src.board import SquareState, Board
 from src.placements import all_possible_ship_locations
 from src.utils import get_all_valid_squares, plot_board, plot_grid_data
@@ -285,3 +285,49 @@ class EliminationStrategyV2(Strategy):
         plot_grid_data(final, ax1, title="Possible Ships Count", vmin=0, vmax=34)
         board.plot(ax2)
         plt.show()
+
+
+class GreedyNNStrategy(Strategy):
+
+    def __init__(self):
+        from tensorflow import keras
+        from src.nn_data_gen import get_sunk_indices
+        self.get_sunk_indicies = get_sunk_indices
+        self.model = keras.models.load_model("greedy_model.h5")
+        self.valid_squares = get_all_valid_squares()
+        self.board_index = None
+
+    def choose_shot(self, board, opponents_sunk, name=None):
+        # sunk vec
+        sunk = np.zeros(len(SHIP_LENS))
+        sunk[self.get_sunk_indicies(opponents_sunk)] = 1.0
+        # board data
+        grid = board.get_data().to_numpy()
+        # add batchsize
+        sunk = sunk[np.newaxis,...]
+        grid = grid[np.newaxis,...]
+        dct = {"grid": grid, "sunk": sunk}
+        # generate pred
+        pred = self.model.predict(dct)
+        pred[grid != SquareState.UNKNOWN] = np.nan
+        pred = np.squeeze(pred)
+
+        # # plotting
+        # fig, (a1, a2) = plt.subplots(1, 2)
+        # plot_grid_data(pred, a1, title="predmap")
+        # plot_board(board, a2, title="board")
+        # plt.show()
+
+        # order shots by preference
+        if self.board_index is None:
+            self.board_index = board.get_data(flat=True).index.to_numpy()
+        shots = self.board_index[np.argsort(pred.flatten())]
+        # select best valid shot
+        for row, col in shots[::-1]:
+            if (col, row) in self.valid_squares:
+                return col, row
+        raise ValueError("No more valid shots!")
+
+    def handle_result(self, col, row, result, sunk, name):
+        self.valid_squares.remove((col, row))
+

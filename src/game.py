@@ -82,6 +82,7 @@ class Simulation:
     def run_one(self):
         turns, timings = self._run_one_thread(max_secs=0)
         self._update_metrics(turns, timings)
+        return self
 
     def run(self, max_secs=20):
         print("Simulating", max_secs, "(ish) seconds of", self.strategy.__name__, 

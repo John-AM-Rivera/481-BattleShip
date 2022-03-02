@@ -58,14 +58,16 @@ class Board():
         col, row = index
         self.data.loc[row, col] = val
 
-    def get_data(self):
+    def get_data(self, flat=False):
         """
-        get data as the standard square board
+        get data as the standard square board, or flattened if flat=True
         """
-        if self.isflat:
+        if self.isflat == flat:
+            return self.data
+        elif self.isflat:
             return self.data.unstack()
         else:
-            return self.data
+            return self.data.stack()
 
     def get_printable(self):
         """
