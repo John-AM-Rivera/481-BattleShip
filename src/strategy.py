@@ -3,6 +3,7 @@ import random
 
 import numpy as np
 import pandas as pd
+from pygments import highlight
 from src import BOTTOM_3_BOARD
 
 from src import ROWS, COLS, SHIP_LENS
@@ -231,6 +232,116 @@ class SearchHuntStrategyV2(Strategy):
                         step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
                         self.possible_ship_squares.append((chr(ord(col)+step), row))
         # invalidate ships on a miss
+        elif result == SquareState.EMPTY:
+            # get ships that are invalidated
+            ships_to_remove = self.squares_to_ships[(col, row)]
+            # remove invalid ships
+            for square,shipset in self.squares_to_ships.items():
+                shipset = {x for x in shipset if x not in ships_to_remove}
+                self.squares_to_ships[square] = shipset
+
+        # remove the invalidated square
+        del self.squares_to_ships[(col, row)]
+
+
+# Accounts for adjacent ships
+class SearchHuntStrategyV3(Strategy):
+
+    def __init__(self):
+        possible_ships = all_possible_ship_locations()
+        self.squares_to_ships = {
+            square: {ship for ship in possible_ships if ship.contains(*square)} for square in get_all_valid_squares()
+        }
+        self.possible_ship_squares = []
+        self.current_ship_hits = []
+
+    # opponents_sunk: list of names of ships that have been sunk
+    def choose_shot(self, board, opponents_sunk, name=None):
+        
+        # Search around previous hits
+        if len(self.current_ship_hits) > 0 and len(self.possible_ship_squares) == 0:
+            hitIndex = 0
+            while (len(self.possible_ship_squares) == 0) and (hitIndex < len(self.current_ship_hits)):
+                col = self.current_ship_hits[hitIndex][0]
+                row = self.current_ship_hits[hitIndex][1]
+                if (chr(ord(col)-1),row) in self.squares_to_ships:
+                    self.possible_ship_squares.append((chr(ord(col)-1),row))
+                
+                if (chr(ord(col)+1),row) in self.squares_to_ships:
+                    self.possible_ship_squares.append((chr(ord(col)+1),row))
+
+                if (col,row-1) in self.squares_to_ships:
+                    self.possible_ship_squares.append((col,row-1))
+
+                if (col,row+1) in self.squares_to_ships:
+                    self.possible_ship_squares.append((col,row+1))
+                
+                hitIndex += 1
+            # if len(self.possible_ship_squares) == 0:
+            #     print("Could not add possible shots")
+            #     print("curent ship hits: ", self.current_ship_hits)
+            #     print("possible ship squares: ", self. possible_ship_squares)
+            #     print("....................\n\n")
+
+
+        # choose the adjacent square with highest number of possible ship placements
+        self.possible_ship_squares.sort(key=lambda x: len(self.squares_to_ships[x]))
+
+        while len(self.possible_ship_squares) > 0:
+            col, row = self.possible_ship_squares.pop()
+            if (col,row) in self.squares_to_ships:
+                return col, row
+
+        # shoot at place with the highest number of possible ship placements
+        # self.show_distribution(board)
+        best_square = max(self.squares_to_ships,
+                            key=lambda x: len(self.squares_to_ships[x]) )
+        return best_square
+
+    def handle_result(self, col, row, result, sunk, name):
+        if result == SquareState.SHIP:
+            if sunk:
+                sunk_size = SHIP_LENS[name]
+
+                # remove hits that share row or column and fall within range of size of ship
+                for square in self.current_ship_hits.copy():
+                    if (square[0] == col or square[1] == row) and ((ord(square[0])+square[1])-(ord(col)+row)) < sunk_size:
+                        self.current_ship_hits.remove(square)
+
+                self.possible_ship_squares = []
+                self.squares_to_ships = {
+                    square: {ship for ship in shipset if ship.name != name} for square,shipset in self.squares_to_ships.items()
+                }
+            else:
+                self.current_ship_hits.append((col,row))
+
+                if len(self.current_ship_hits) > 1:
+                    # remove any squares in that don't align with hit
+                    for square in self.possible_ship_squares.copy():
+                        if square[0] != col and square[1] != row:
+                            self.possible_ship_squares.remove(square)
+
+                    # add next possible shot based on current hit and adjacent hit
+                    adjacent_hit = None
+                    for square in self.current_ship_hits:
+                        if (square[0] == col or square[1] == row) and abs((ord(square[0])+square[1])-(ord(col)+row)) == 1:
+                            adjacent_hit = square
+
+                    if adjacent_hit is None:
+                        pass
+                        # print("Current hit: ", (col, row))
+                        # print("curent ship hits: ", self.current_ship_hits)
+                        # print("possible ship squares: ", self. possible_ship_squares)
+                    else:
+                        # continue searching in a line
+                        if adjacent_hit[0] == col: # ship is vertical
+                            step = (row - adjacent_hit[1]) // abs(row - adjacent_hit[1])
+                            if (col, row+step) in self.squares_to_ships:
+                                self.possible_ship_squares.append((col, row+step))
+                        else:   # ship is horizontal
+                            step = (ord(col) - ord(adjacent_hit[0])) // abs(ord(col) - ord(adjacent_hit[0]))
+                            if (chr(ord(col)+step), row) in self.squares_to_ships:
+                                self.possible_ship_squares.append((chr(ord(col)+step), row))
         elif result == SquareState.EMPTY:
             # get ships that are invalidated
             ships_to_remove = self.squares_to_ships[(col, row)]
