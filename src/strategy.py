@@ -354,6 +354,207 @@ class SearchHuntStrategyV3(Strategy):
         del self.squares_to_ships[(col, row)]
 
 
+# Accounts for adjacent ships and fixes issue where incoreect ship hits were being eliminated when a ship was sunk
+# Still possible to confuse algorithm when a lot of ships are clustered adjacent to each other. Performance is not affected much.
+class SearchHuntStrategyV4(Strategy):
+
+    def __init__(self):
+        possible_ships = all_possible_ship_locations()
+        self.squares_to_ships = {
+            square: {ship for ship in possible_ships if ship.contains(*square)} for square in get_all_valid_squares()
+        }
+        self.possible_ship_squares = []
+        self.current_ship_hits = []
+        self.ship_direction = ShipOrientation.UNKNOWN
+        self.board = []
+        self.previous_shot = None
+
+    # opponents_sunk: list of names of ships that have been sunk
+    def choose_shot(self, board, opponents_sunk, name=None):
+        self.board = board
+
+        # Search around previous hits
+        if len(self.current_ship_hits) > 0 and len(self.possible_ship_squares) == 0:
+            hitIndex = 0
+            while (len(self.possible_ship_squares) == 0) and (hitIndex < len(self.current_ship_hits)):
+                col = self.current_ship_hits[hitIndex][0]
+                row = self.current_ship_hits[hitIndex][1]
+                if (chr(ord(col)-1),row) in self.squares_to_ships:
+                    self.possible_ship_squares.append((chr(ord(col)-1),row))
+                
+                if (chr(ord(col)+1),row) in self.squares_to_ships:
+                    self.possible_ship_squares.append((chr(ord(col)+1),row))
+
+                if (col,row-1) in self.squares_to_ships:
+                    self.possible_ship_squares.append((col,row-1))
+
+                if (col,row+1) in self.squares_to_ships:
+                    self.possible_ship_squares.append((col,row+1))
+                
+                hitIndex += 1
+
+            if len(self.possible_ship_squares) == 0:
+                print("Could not add possible shots")
+                print("curent ship hits: ", self.current_ship_hits)
+                print("possible ship squares: ", self. possible_ship_squares)
+                print(board)
+                print("....................\n\n")
+
+
+        # choose the adjacent square with highest number of possible ship placements
+        self.possible_ship_squares.sort(key=lambda x: len(self.squares_to_ships[x]))
+
+        while len(self.possible_ship_squares) > 0:
+            col, row = self.possible_ship_squares.pop()
+            if (col,row) in self.squares_to_ships:
+                return col, row
+
+        # shoot at place with the highest number of possible ship placements
+        # self.show_distribution(board)
+        best_square = max(self.squares_to_ships,
+                            key=lambda x: len(self.squares_to_ships[x]) )
+        return best_square
+
+    def handle_result(self, col, row, result, sunk, name):
+        if result == SquareState.SHIP:
+            if sunk:
+                sunk_size = SHIP_LENS[name]
+
+                # Handle size 2 ships
+                if sunk_size == 2:
+                    #find adjacent shot
+                    adjacent_hit = None
+                    for square in self.current_ship_hits:
+                        if (square[0] == col or square[1] == row) and abs((ord(square[0])+square[1])-(ord(col)+row)) == 1:
+                            adjacent_hit = square
+                    
+                    # issue usually happens because some other sink removed the wrong hits
+                    if adjacent_hit is None:
+                        print("Sunk size 2 with shot: ", (col, row))
+                        print("Did not find adjacent hit to ", (col, row))
+                        print("curent ship hits: ", self.current_ship_hits)
+                        print(self.board)
+                    else:
+                        self.current_ship_hits.remove(adjacent_hit)
+                else:
+                    # if self.ship_direction == ShipOrientation.UNKNOWN:
+                    #find adjacent shot
+                    adjacent_hit = None
+                    for square in self.current_ship_hits:
+                        if (square[0] == col or square[1] == row) and abs((ord(square[0])+square[1])-(ord(col)+row)) == 1:
+                            adjacent_hit = square
+                    
+                    if adjacent_hit is not None:
+                        if adjacent_hit[0] == col: # ship is vertical
+                            self.ship_direction = ShipOrientation.VERTICAL
+                        else:
+                            self.ship_direction = ShipOrientation.HORIZONTAL
+
+                    remove_count = 0
+                    removed_hits = []
+                    # remove hits that are along direction of ship that fall within range of size of ship
+                    for square in self.current_ship_hits.copy():
+                        if (self.ship_direction == ShipOrientation.VERTICAL) and (square[0] == col) and (abs((ord(square[0])+square[1])-(ord(col)+row)) < sunk_size):
+                            removed_hits.append(square)
+                            self.current_ship_hits.remove(square)
+                            remove_count += 1
+                        elif (self.ship_direction == ShipOrientation.HORIZONTAL) and (square[1] == row) and (abs((ord(square[0])+square[1])-(ord(col)+row)) < sunk_size):
+                            removed_hits.append(square)
+                            self.current_ship_hits.remove(square)
+                            remove_count += 1
+                    
+                    # retry with different orientation if squares removed does not match sunk ship size
+                    # if (remove_count+1) != sunk_size:
+                    #     self.ship_direction ^= 1
+                    #     print("TOGGLING DIRECTION")
+                    #     print("current ship hits before: ", self.current_ship_hits)
+                    #     self.current_ship_hits.extend(removed_hits)
+                    #     print("current ship hits after: ", self.current_ship_hits)
+                    #     removed_hits = []
+                    #     remove_count = 0
+                    #     for square in self.current_ship_hits.copy():
+                    #         if (self.ship_direction == ShipOrientation.VERTICAL) and (square[0] == col) and (abs((ord(square[0])+square[1])-(ord(col)+row)) < sunk_size):
+                    #             removed_hits.append(square)
+                    #             self.current_ship_hits.remove(square)
+                    #             remove_count += 1
+                    #         elif (self.ship_direction == ShipOrientation.HORIZONTAL) and (square[1] == row) and (abs((ord(square[0])+square[1])-(ord(col)+row)) < sunk_size):
+                    #             removed_hits.append(square)
+                    #             self.current_ship_hits.remove(square)
+                    #             remove_count += 1
+
+
+                    if (remove_count+1) != sunk_size:
+                        print("\nremoved hits: ", removed_hits)
+                        print("removed count: ", remove_count)
+                        print("current hits: ", self.current_ship_hits)
+                        print("previous shot: ", self.previous_shot)
+                        print("shot at: ", (col, row))
+                        print("sunnk size: ", sunk_size)
+                        print("ship direction: ", self.ship_direction)
+                        print(self.board)
+                        print("Error: UNKNOWN ship direction or non-matching direction\n")
+
+
+                if len(self.current_ship_hits) == 0:
+                    self.possible_ship_squares = []
+                else:
+                    # remove any squares in possible_ship_squares that align with sunk ship because we finished hunting it
+                    for square in self.possible_ship_squares.copy():
+                        if self.ship_direction == ShipOrientation.HORIZONTAL and square[1] == row:
+                            self.possible_ship_squares.remove(square)
+                        elif self.ship_direction == ShipOrientation.VERTICAL and square[0] == col:
+                            self.possible_ship_squares.remove(square)
+                self.ship_direction = ShipOrientation.UNKNOWN
+                
+
+                self.squares_to_ships = {
+                    square: {ship for ship in shipset if ship.name != name} for square,shipset in self.squares_to_ships.items()
+                }
+            else:
+                self.current_ship_hits.append((col,row))
+
+                if len(self.current_ship_hits) > 1:
+                    # remove any squares in possible_ship_squares that don't align with hit
+                    for square in self.possible_ship_squares.copy():
+                        if square[0] != col and square[1] != row:
+                            self.possible_ship_squares.remove(square)
+
+                    # add next possible shot based on current hit and adjacent hit
+                    adjacent_hit = None
+                    for square in self.current_ship_hits:
+                        if (square[0] == col or square[1] == row) and abs((ord(square[0])+square[1])-(ord(col)+row)) == 1:
+                            adjacent_hit = square
+
+                    if adjacent_hit is None:
+                        print("Did not find adjacent hit to ", (col, row))
+                        print("Current hit: ", (col, row))
+                        print("curent ship hits: ", self.current_ship_hits)
+                        print("possible ship squares: ", self. possible_ship_squares)
+                        print(self.board)
+                    else:
+                        # continue searching in a line
+                        if adjacent_hit[0] == col: # ship is vertical
+                            self.ship_direction = ShipOrientation.VERTICAL
+                            step = (row - adjacent_hit[1]) // abs(row - adjacent_hit[1])
+                            if (col, row+step) in self.squares_to_ships:
+                                self.possible_ship_squares.append((col, row+step))
+                        else:   # ship is horizontal
+                            self.ship_direction = ShipOrientation.HORIZONTAL
+                            step = (ord(col) - ord(adjacent_hit[0])) // abs(ord(col) - ord(adjacent_hit[0]))
+                            if (chr(ord(col)+step), row) in self.squares_to_ships:
+                                self.possible_ship_squares.append((chr(ord(col)+step), row))
+        elif result == SquareState.EMPTY:
+            # get ships that are invalidated
+            ships_to_remove = self.squares_to_ships[(col, row)]
+            # remove invalid ships
+            for square,shipset in self.squares_to_ships.items():
+                shipset = {x for x in shipset if x not in ships_to_remove}
+                self.squares_to_ships[square] = shipset
+
+        # remove the invalidated square
+        del self.squares_to_ships[(col, row)]
+        self.previous_shot = (col, row)
+
 class CSPStrategy(Strategy):
     # Bug: strategy seems to be retrying squares that have been tried before
 
