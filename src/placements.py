@@ -199,12 +199,11 @@ class RandomPlacement(PlacementStrategy):
 class TestPlacement_1(PlacementStrategy):
 
     def generate_placements(self):
-        random.seed(8008135)
-        testBoard = [ShipPlacement('J', 8, 'J', 9, "patrol boat"), \
+        testBoard = [ShipPlacement('J', 8, 'J', 9, "patrolboat"), \
                      ShipPlacement('B', 5, 'B', 7, "destroyer"), \
                      ShipPlacement('C', 2, 'E', 2, "submarine"), \
                      ShipPlacement('D', 7, 'G', 7, "battleship"), \
-                     ShipPlacement('G', 2, 'G', 6, "carrier")]
+                     ShipPlacement('G', 1, 'G', 6, "carrier")]
         possible = set(testBoard)
         selected = []
         for name in SHIP_LENS.keys():
@@ -215,11 +214,20 @@ class TestPlacement_1(PlacementStrategy):
             possible = [x for x in possible if not x.overlaps(ship)]
         return selected
 
+class TestPlacement_2(PlacementStrategy):
+
+    def generate_placements(self):
+        testBoard = [ShipPlacement('J', 8, 'J', 9, "patrolboat"), \
+                     ShipPlacement('H', 7, 'J', 7, "destroyer"), \
+                     ShipPlacement('C', 2, 'E', 2, "submarine"), \
+                     ShipPlacement('B', 5, 'B', 8, "battleship"), \
+                     ShipPlacement('G', 2, 'G', 6, "carrier")]
+        return testBoard
+
 class adjacentPlacement_1(PlacementStrategy):
 
     def generate_placements(self):
-        random.seed(8008135)
-        testBoard = [ShipPlacement('J', 8, 'J', 9, "patrol boat"), \
+        testBoard = [ShipPlacement('J', 8, 'J', 9, "patrolboat"), \
                      ShipPlacement('B', 5, 'B', 7, "destroyer"), \
                      ShipPlacement('C', 2, 'E', 2, "submarine"), \
                      ShipPlacement('D', 7, 'G', 7, "battleship"), \

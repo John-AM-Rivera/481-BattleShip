@@ -2,10 +2,13 @@ import unittest
 
 import pandas as pd
 import numpy as np
+import random as random
 
 from src import BOARD_SIZE, ROWS, COLS
-from src.placements import ShipPlacement, all_possible_ship_locations
+from src.placements import ShipPlacement, all_possible_ship_locations, TestPlacement_1, TestPlacement_2
 from src.board import SquareState
+from src.game import Game, Simulation
+from src.strategy import UserStrategy, CSPStrategy, EliminationStrategy
 
 class Tests(unittest.TestCase):
 
@@ -76,16 +79,15 @@ class Tests(unittest.TestCase):
         self.assertTrue(hit)
         self.assertTrue(sunk)
 
-    def test_dimension_reduction(self):
+    def test_choice_reduction(self):
         print("Running CSP")
-        random.seed(8008135)
-        g = Game(CSPStrategy, UserStrategy, TestPlacement_1, TestPlacement_1)
+        g = Game(CSPStrategy, CSPStrategy, TestPlacement_2, TestPlacement_2)
         g.play(show=True)
-        # g = Game(EliminationStrategy, UserStrategy, TestPlacement_1, TestPlacement_1)
-        # g.play(show=True)
-        # sim = Simulation(EliminationStrategy, TestPlacement_1).run(max_secs=5)
-        # sim1 = Simulation(SearchHuntStrategy, TestPlacement_1).run(max_secs=5)
-        # print(sim1.metrics())
+        sim1 = Simulation(CSPStrategy, TestPlacement_1)
+        sim1.run()
+        print(sim1.metrics())
+
+
     def test_ship_eq(self):
         s1 = ShipPlacement("A", 4, "C", 4, "submarine")
         s2 = ShipPlacement("B", 1, "B", 5, "carrier")

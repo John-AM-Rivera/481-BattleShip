@@ -1,9 +1,11 @@
 import abc
 import random
+from turtle import right, up
 
 import numpy as np
 import pandas as pd
-from src import BOTTOM_3_BOARD
+from src import BOARD_SIZE, BOTTOM_3_BOARD, FULL_BOARD
+from src import BOTTOM_9X9_BOARD
 
 from src import ROWS, COLS, SHIP_LENS
 from src.board import SquareState, Board
@@ -69,15 +71,10 @@ concrete strategies
 class UserStrategy(Strategy):
 
     def __init__(self):
-        self.set_squares = BOTTOM_3_BOARD.copy()
-        # print(self.set_squares)
         self.moves = 0
 
     def choose_shot(self, board, opponents_sunk, name=None):
-        if len(self.set_squares) > 0:
-            return self.create_Test_Condition()
         square = input("{}: Enter a square to fire on (ex: E4): ".format(name))
-        # print(all_possible_ship_locations())
         col, row = square
         row = int(row)
         return col, row
@@ -90,11 +87,6 @@ class UserStrategy(Strategy):
                 print(f"{col}{row}: Hit!")
         else:
             print(f"{col}{row}: Miss.")
-
-    def create_Test_Condition(self):
-        location = self.set_squares.pop()
-        self.moves += 1
-        return location
 
 
 class RandomStrategy(Strategy):
@@ -244,62 +236,103 @@ class SearchHuntStrategyV2(Strategy):
 
 
 class CSPStrategy(Strategy):
-    # Bug: strategy seems to be retrying squares that have been tried before
 
+    # NOTE: A lot of the attributes are unused as they were originally made for testing. 
+    # Their analysis will be explained in the Final Report
     def __init__(self):
-        self.set_squares = BOTTOM_3_BOARD.copy()
-        print(self.set_squares)
+        self.set_squares = {}
+        self.ships_afloat = ["carrier", "patrolboat", "battleship", "submarine", "destroyer"]
+        self.possible_ships_loc = list(all_possible_ship_locations())
+        self.ship_tiles_available = 17
+        self.hits_available = 17
+        self.possible_ships = all_possible_ship_locations()
+        self.row_info = [0 for i in range(10)]
+        self.col_info = [0 for i in range(10)]
         self.moves = 0
-        self.valid_squares = list(itertools.product(COLS, ROWS))
-        self.valid_squares = set(get_all_valid_squares())
+        self.hits_found = []
+        self.valid_squares = get_all_valid_squares()
         self.possible_ship_squares = []
         self.current_ship_hits = []
 
-    # opponents_sunk: list of names of ships that have been sunk
     def choose_shot(self, board, opponents_sunk, name=None):
-        if len(self.set_squares) > 0:
-            return self.create_Test_Condition()
+        self.printCurrentInfo()
+        # probabilites from Elimination Strategy
+        ship_counts = [
+            sum(ship.contains(*square) for ship in self.possible_ships) for square in self.valid_squares
+        ]
+        self.propagate_probabilites(ship_counts, board, opponents_sunk)
+        best_idx = np.argmax(ship_counts)
+        return self.valid_squares.pop(best_idx)
 
-    def shave_valid_squares(self, opponents_sunk):
-        #TODO create a different shaving algorithm
-        #previously I used the possible ship set to decrease the available squares 
-        #I need to re assess the logic - John
+    # probabilities are increased for hits for which we do not know cardinality yet. This gives us more information during play 
+    # thus faster discovery time of hidden ships
+    def propagate_probabilites(self, ship_counts, board, opponents_sunk):
+        for hit_loc in self.hits_found:
+            if self.hit_cardinality(hit_loc):
+                self.multiply_cardinality(ship_counts, hit_loc)
+        return
+
+    def get_cardinal_coord(self, hit_loc):
+        col = hit_loc[0]
+        row = hit_loc[1]
+        left = (col, row - 1)
+        right = (col, row + 1)
+        above = ((chr(ord(col) + 1)), row)
+        down = ((chr(ord(col) - 1)), row)
+        return left, right, above, down
+
+    def hit_cardinality(self, hit_loc) -> bool:
+        left, right, above, down = self.get_cardinal_coord(hit_loc)
+        return left in self.hits_found or right in self.hits_found or above in self.hits_found or down in self.hits_found
+
+    def multiply_cardinality(self, ship_counts, hit_loc):
+        left, right, above, down = self.get_cardinal_coord(hit_loc)
+        card_lst = [left, right, above, down]
+        for coord in card_lst:
+            if coord in self.valid_squares:
+                ship_counts[self.valid_squares.index(coord)] *= 10
         return
 
     def handle_result(self, col, row, result, sunk, name):
         if result == SquareState.SHIP:
+            self.row_info[row] += 1
+            self.col_info[ord(col) - 65] += 1
+            self.hits_found.append((col, row))
+            self.hits_available -= 1
             if sunk:
-                self.possible_ship_squares = []
-                self.current_ship_hits = []
+                self.ships_afloat.remove(name)
+                self.reduceShipTiles(name)
+                print("Ship was Sunk!")
+                self.possible_ships = {ship for ship in self.possible_ships if not ship.name == name}
             else:
-                self.current_ship_hits.append((col,row))
+                print("Ship was Hit!")
+        elif result == SquareState.EMPTY:
+            self.possible_ships = {ship for ship in self.possible_ships if not ship.contains(col, row)}
 
-                # populate possible_ship_squares with possible positions for the rest of the ship
-                # if first random hit (psq empty) all four adjacent squares should be added to psq
-                if len(self.possible_ship_squares) == 0:
-                    self.possible_ship_squares.append((chr(ord(col)-1),row)) 
-                    self.possible_ship_squares.append((chr(ord(col)+1),row))
-                    self.possible_ship_squares.append((col,row-1))
-                    self.possible_ship_squares.append((col,row+1))
-                else:
-                    # remove any squares in psq that are not in the same row or column as hit
-                    for square in self.possible_ship_squares.copy():
-                        if square[0] != col and square[1] != row:
-                            self.possible_ship_squares.remove(square)
+    # tracks available ship tiles (CAN BE DELETED BUT IS USEFUL FOR OTHER GAMEMODES)                
+    def reduceShipTiles(self, name):
+        if (name == "patrolboat"):
+            self.ship_tiles_available -= 2
+            for ship in self.possible_ships_loc:
+                if ship.name == name:
+                    self.possible_ships_loc.remove(ship)
+        elif (name == "destroyer" or name == "submarine"):
+            self.ship_tiles_available -= 3
+        elif (name == "battleship"):
+            self.ship_tiles_available -= 4
+        else:            
+            self.ship_tiles_available -= 5
 
-                    # add next possible shot based on current hit
-                    if self.current_ship_hits[0][0] == col: # ship is vertical
-                        # opposite direction to previous shot
-                        step = (row - self.current_ship_hits[0][1]) // (row - self.current_ship_hits[0][1])
-                        self.possible_ship_squares.append((col, row+step))
-                    else:   # ship is horizontal
-                        step = (ord(col) - ord(self.current_ship_hits[0][0])) // (ord(col) - ord(self.current_ship_hits[0][0]))
-                        self.possible_ship_squares.append((chr(ord(col)+step), row))
+    # print statements for information representation during development
+    def printCurrentInfo(self):
+        # print("Row Information: " + str(self.row_info))
+        # print("Col Information: " + str(self.col_info))
+        # print("Ships Afloat: " + str(self.ships_afloat))
+        # print("Ship tiles Left = " + str(self.ship_tiles_available))
+        # print("Hit tiles Left = " + str(self.hits_available))
+        # print("valid squares: " + str(self.valid_squares))
+        return
 
-    def create_Test_Condition(self):
-        location = self.set_squares.pop()
-        self.moves += 1
-        return location
 
 class EliminationStrategy(Strategy):
 
