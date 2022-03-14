@@ -20,7 +20,11 @@ def main():
     s = Simulation(CSPStrategy, RandomPlacement)
     s.run()
     # s.display_one(interval=50)
-    pprint(s.metrics())
+    s = Simulation(SearchHuntStrategyV4, RandomPlacement).run(max_secs=240)
+    # s = Simulation(SearchHuntStrategyV4, RandomPlacement)
+    # s.run()
+    # s.display_one(interval=100)
+    print(s.metrics())
 
 
 if __name__ == "__main__":
