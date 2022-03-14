@@ -13,7 +13,7 @@ from src.strategy import UserStrategy, Strategy, NoStrategy
 from src.placements import PlacementStrategy, NoPlacements
 from src.board import Board, SquareState
 
-from src.utils import create_board_blot, animate_boards
+from src.utils import create_board_plot, animate_boards
 
 
 
@@ -59,8 +59,8 @@ class Simulation:
         timer.start("total")
         while True:
             timer.start("init")
-            shooter = Player(self.strategy, NoPlacements, "shooter")
-            target = Player(NoStrategy, self.placement, "target")
+            shooter = Player(self.strategy, NoPlacements(), "shooter")
+            target = Player(NoStrategy(), self.placement, "target")
             timer.end("init")
             timer.start("play")
             while not shooter.has_won():
@@ -85,8 +85,8 @@ class Simulation:
         return self
 
     def run(self, max_secs=20):
-        print("Simulating", max_secs, "(ish) seconds of", self.strategy.__name__, 
-            "and", self.placement.__name__, "in", multiprocessing.cpu_count(), "processes")
+        print("Simulating", max_secs, "(ish) seconds of", self.strategy.__class__.__name__, 
+            "and", self.placement.__class__.__name__, "in", multiprocessing.cpu_count(), "processes")
         with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
             results = pool.map(
                 self._run_one_thread, 
@@ -102,17 +102,17 @@ class Simulation:
         args:
             interval, in ms
         """
-        shooter = Player(self.strategy, NoPlacements, "shooter")
-        target = Player(NoStrategy, self.placement, "target")
+        shooter = Player(self.strategy, NoPlacements(), "shooter")
+        target = Player(NoStrategy(), self.placement, "target")
         fig, ax = plt.subplots()
         ims = []
         while not shooter.has_won():
-            im = create_board_blot(shooter.shots.get_data(), ax, animated=True)
+            im = create_board_plot(shooter.shots.get_data(), ax, animated=True)
             ims.append(im)
             shooter.take_turn_against(target)
-        im = create_board_blot(shooter.shots.get_data(), ax, animated=True)
+        im = create_board_plot(shooter.shots.get_data(), ax, animated=True)
         ims.append(im)
-        fig.suptitle(self.strategy.__name__ + f" winning in {len(ims)} turns")
+        fig.suptitle(self.strategy.__class__.__name__ + f" winning in {len(ims)} turns")
         return animate_boards(ims, fig, interval=interval, save_as=save_as, ipynb=ipynb)
 
 
@@ -121,6 +121,7 @@ class Simulation:
             "n_simulations": len(self.turns),
             "total_turns": np.sum(self.turns),
             "avg_turns": np.mean(self.turns),
+            "median_turns": np.median(self.turns),
             "std_dev_turns": np.std(self.turns),
         }
         metric_vals["time"] = {
@@ -136,7 +137,7 @@ class Game:
     """
     player 0 always goes first
     __init__ args:
-        strategyX, placementX: classes of type Strategy, PlacementStrategy (not initialized instances, just the raw class)
+        strategyX, placementX: type Strategy, PlacementStrategy
     """
 
     def __init__(self, strategy0, strategy1, placement0, placement1):
@@ -163,13 +164,22 @@ class Game:
             if self.p0.has_won():
                 if show:
                     self.show_boards()
-                return 0, self.p0.turns
+                winner = 0
+                winning_player = self.p0
+                break
             self.one_turn(self.p1, self.p0, show=show)
             if self.p1.has_won():
                 if show:
                     self.show_boards()
-                return 1, self.p1.turns
+                winner = 1
+                winning_player = self.p1
+                break
     
+        if show:
+            print(winning_player.name, "won in", winning_player.turns, "turns!")
+        return winner, winning_player.turns
+
+
     def one_turn(self, playerA, playerB, show):
         if show:
             self.show_boards()
@@ -177,8 +187,8 @@ class Game:
 
 
     def show_boards(self):
-        print("Player zeros's shots:            Player ones's shots:")
-        print(pd.concat((self.p0.shots.get_printable(), self.divider, self.p1.shots.get_printable()), axis=1))
+        data = pd.concat((self.p0.shots.get_printable(), self.divider, self.p1.shots.get_printable()), axis=1)
+        print("Player zeros's shots:            Player ones's shots:\n" + str(data))
 
 
 # class ManualTest:

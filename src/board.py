@@ -84,4 +84,16 @@ class Board():
         plot_board(self, ax=ax)
         plt.show()
 
+    def num_hits(self):
+        """
+        returns the number of squares known to be ships/hits
+        """
+        d = self.data[self.data == SquareState.SHIP]
+        return d.sum().sum()
 
+    def get_hits(self):
+        """
+        returns series of tuples of form (row, col)
+        """
+        data = self.get_data(flat=True)
+        return data[data == SquareState.SHIP].index

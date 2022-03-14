@@ -22,9 +22,26 @@ class Strategy(abc.ABC):
     interface that other strategies should implement
     """
 
-    # attribute that deter8mines whether the board should be flattened with
+    # attribute that determines whether the board should be flattened with
     # DataFrame.stack(). Flat has faster lookup than square, so should be preferred
     require_square_board = False
+
+    def __init__(self):
+        """
+        only override this method to set attributes that should be kept
+        between all games this strategy is used in. For example, a cutoff parameter
+        that remains unchanged between games. Transient things like which squares
+        are currently valid should be initialized in the `reinitialize` method 
+        since they are only relevant to their particular game.
+
+        Additionally, all params must have defaults, so that init can be called
+        with no arguments
+        """
+
+    def reinitialize(self):
+        """
+        initialize game-specific data for this strategy. All arguments must have defaults
+        """
 
     @abc.abstractmethod
     def choose_shot(self, board, opponents_sunk, name=None):
@@ -36,16 +53,11 @@ class Strategy(abc.ABC):
         returns:
             col: str (ex: "E")
             row: int (ex: 4)
+        This method should not modify the board object
         """
         ...
 
-    def handle_simulated_shot(self, col, row):
-        """
-        handle result chosen by another method (ie, not this classes's own choose_shot method)
-        """
-        raise NotImplementedError()
-
-    def handle_result(self, col, row, result, sunk, name):
+    def handle_result(self, col, row, result, sunk, board, name):
         """
         update internal state in response to the result of a shot. Default
         behavior is to do nothing
@@ -54,6 +66,8 @@ class Strategy(abc.ABC):
             result: shot result
             sunk: bool
             name: name of sunk ship, only applicable if sunk
+            board: Board object
+        This method should not modify the board object
         """
         pass
 
@@ -69,7 +83,7 @@ concrete strategies
 
 class UserStrategy(Strategy):
 
-    def __init__(self):
+    def reinitialize(self):
         self.set_squares = BOTTOM_3_BOARD.copy()
         # print(self.set_squares)
         self.moves = 0
@@ -83,7 +97,7 @@ class UserStrategy(Strategy):
         row = int(row)
         return col, row
     
-    def handle_result(self, col, row, result, sunk, name):
+    def handle_result(self, col, row, result, sunk, board, name):
         if result == SquareState.SHIP:
             if sunk:
                 print(f"{col}{row}: You sunk my {name}!")
@@ -100,7 +114,7 @@ class UserStrategy(Strategy):
 
 class RandomStrategy(Strategy):
 
-    def __init__(self):
+    def reinitialize(self):
         self.valid_squares = set(get_all_valid_squares())
 
     def choose_shot(self, board, opponents_sunk, name=None):
@@ -118,7 +132,7 @@ class RandomStrategy(Strategy):
 class SearchHuntStrategy(Strategy):
     # Bug: does not account for adjacent ships
 
-    def __init__(self):
+    def reinitialize(self):
         self.possible_ships = all_possible_ship_locations()
         self.valid_squares = list(itertools.product(COLS, ROWS))
         self.possible_ship_squares = []
@@ -139,7 +153,7 @@ class SearchHuntStrategy(Strategy):
         best_idx = np.argmax(ship_counts)
         return self.valid_squares.pop(best_idx)
 
-    def handle_result(self, col, row, result, sunk, name):
+    def handle_result(self, col, row, result, sunk, board, name):
         if result == SquareState.SHIP:
             if sunk:
                 self.possible_ship_squares = []
@@ -177,7 +191,7 @@ class SearchHuntStrategy(Strategy):
 class SearchHuntStrategyV2(Strategy):
     # Bug: does not account for adjacent ships
 
-    def __init__(self):
+    def reinitialize(self):
         possible_ships = all_possible_ship_locations()
         # dict( (col, row) => set(ShipPlacement) )
         self.squares_to_ships = {
@@ -199,7 +213,7 @@ class SearchHuntStrategyV2(Strategy):
                             key=lambda x: len(self.squares_to_ships[x]) )
         return best_square
 
-    def handle_result(self, col, row, result, sunk, name):
+    def handle_result(self, col, row, result, sunk, board, name):
         if result == SquareState.SHIP:
             if sunk:
                 self.possible_ship_squares = []
@@ -247,7 +261,7 @@ class SearchHuntStrategyV2(Strategy):
 # Accounts for adjacent ships
 class SearchHuntStrategyV3(Strategy):
 
-    def __init__(self):
+    def reinitialize(self):
         possible_ships = all_possible_ship_locations()
         self.squares_to_ships = {
             square: {ship for ship in possible_ships if ship.contains(*square)} for square in get_all_valid_squares()
@@ -298,7 +312,7 @@ class SearchHuntStrategyV3(Strategy):
                             key=lambda x: len(self.squares_to_ships[x]) )
         return best_square
 
-    def handle_result(self, col, row, result, sunk, name):
+    def handle_result(self, col, row, result, sunk, board, name):
         if result == SquareState.SHIP:
             if sunk:
                 sunk_size = SHIP_LENS[name]
@@ -357,7 +371,7 @@ class SearchHuntStrategyV3(Strategy):
 class CSPStrategy(Strategy):
     # Bug: strategy seems to be retrying squares that have been tried before
 
-    def __init__(self):
+    def reinitialize(self):
         self.set_squares = BOTTOM_3_BOARD.copy()
         print(self.set_squares)
         self.moves = 0
@@ -377,7 +391,7 @@ class CSPStrategy(Strategy):
         #I need to re assess the logic - John
         return
 
-    def handle_result(self, col, row, result, sunk, name):
+    def handle_result(self, col, row, result, sunk, board, name):
         if result == SquareState.SHIP:
             if sunk:
                 self.possible_ship_squares = []
@@ -414,7 +428,7 @@ class CSPStrategy(Strategy):
 
 class EliminationStrategy(Strategy):
 
-    def __init__(self):
+    def reinitialize(self):
         self.possible_ships = all_possible_ship_locations()
         self.valid_squares = get_all_valid_squares()
 
@@ -426,7 +440,7 @@ class EliminationStrategy(Strategy):
         best_idx = np.argmax(ship_counts)
         return self.valid_squares.pop(best_idx)
     
-    def handle_result(self, col, row, result, sunk, name):
+    def handle_result(self, col, row, result, sunk, board, name):
         # invalidate ships on a miss
         if result == SquareState.EMPTY:
             self.possible_ships = {ship for ship in self.possible_ships if not ship.contains(col, row)}
@@ -440,7 +454,7 @@ class EliminationStrategyV2(Strategy):
     faster version of the above
     """
     
-    def __init__(self):
+    def reinitialize(self):
         possible_ships = all_possible_ship_locations()
         # dict( (col, row) => set(ShipPlacement) )
         self.squares_to_ships = {
@@ -455,7 +469,7 @@ class EliminationStrategyV2(Strategy):
                             key=lambda x: len(self.squares_to_ships[x]) )
         return best_square
     
-    def handle_result(self, col, row, result, sunk, name):
+    def handle_result(self, col, row, result, sunk, board, name):
         # invalidate ships on a miss
         if result == SquareState.EMPTY:
             # get ships that are invalidated
@@ -485,11 +499,11 @@ class EliminationStrategyV2(Strategy):
 
 
 class GreedyNNStrategy(Strategy):
-
-    def __init__(self):
+    
+    def reinitialize(self):
         from tensorflow import keras
         from src.nn_data_gen import get_sunk_indices
-        self.get_sunk_indicies = get_sunk_indices
+        self.get_sunk_indices = get_sunk_indices
         self.model = keras.models.load_model("greedy_model.h5")
         self.valid_squares = get_all_valid_squares()
         self.board_index = None
@@ -497,7 +511,7 @@ class GreedyNNStrategy(Strategy):
     def choose_shot(self, board, opponents_sunk, name=None):
         # sunk vec
         sunk = np.zeros(len(SHIP_LENS))
-        sunk[self.get_sunk_indicies(opponents_sunk)] = 1.0
+        sunk[self.get_sunk_indices(opponents_sunk)] = 1.0
         # board data
         grid = board.get_data().to_numpy()
         # add batchsize
@@ -525,6 +539,265 @@ class GreedyNNStrategy(Strategy):
                 return col, row
         raise ValueError("No more valid shots!")
 
-    def handle_result(self, col, row, result, sunk, name):
+    def handle_result(self, col, row, result, sunk, board, name):
         self.valid_squares.remove((col, row))
+
+
+class BackTrackError(Exception):
+    """
+    error to signal we need to backtrack in our placement process
+    """
+
+class SamplingStrategy(Strategy, abc.ABC):
+    """
+    Base class for strategies that sample possible valid boards to determine a next shot
+    """
+
+    def __init__(self, n_samples=10):
+        self.n_samples = 10
+
+    def reinitialize(self):
+        possible_ships = list(all_possible_ship_locations())
+        random.shuffle(possible_ships)
+        self.squares_to_ships = {
+            square: [ship for ship in possible_ships if ship.contains(*square)] for square in get_all_valid_squares()
+        }
+        self.names_to_ships = { 
+            name: [ship for ship in possible_ships if ship.name == name] for name in SHIP_LENS.keys()
+        }
+        # boards from previous iteration that are still valid
+        self.sampled_placements = []
+
+    def generate_selection_order(self, sunk_names):
+        # ship names sorted sunk, then randomly
+        keyfunc = lambda name: (name in sunk_names, np.random.rand())
+        self.selection_order = sorted(SHIP_LENS.keys(), key=keyfunc, reverse=True)
+        self.lengths = [SHIP_LENS[x] for x in self.selection_order]
+        self.last_ind = len(SHIP_LENS) - 1
+
+    def placements_to_df(self, ships):
+        board = Board(SquareState.EMPTY, flat=True)
+        for s in ships:
+            board[s] = SquareState.SHIP
+        return board.get_data(flat=True)
+
+    def count_hits(self, board, ship):
+        squared_placed_in = board[ship]
+        return squared_placed_in[squared_placed_in == SquareState.SHIP].sum()
+
+    def sample_one_placement(self, board, selected, index, hits_remaining):
+        """
+        randomly sample a placement that satisfies board
+        this function acts recursively, selecting ships one at a time
+        args:
+            selected: ships selected so far
+            index: index into `self.selection_order` of what ship we are selecting currently
+            hits_remaining: number of hits that are left uncovered
+        """
+        # the ship we are placing currently
+        name = self.selection_order[index]
+        # get number of hits we need to cover with this ship in order to possibly cover all hits in the future
+        hits_required_now = hits_remaining - sum(self.lengths[index+1:])
+        # counter for number of times backtracked
+        backtracks = 0
+        # keep track of placements we've already tried
+        placements_tried = []
+
+
+        def is_valid(ship):
+            """
+            helper to check a placement doesn't overlap with previous placements 
+            and satisfies hit constraints
+            """
+            return (ship not in placements_tried) and \
+                (not any(ship.overlaps(x) for x in selected)) and \
+                (hits_required_now <= 0 or self.count_hits(board, ship) >= hits_required_now)
+    
+        def try_recurse(ship):
+            """
+            helper to handle the logic of recursing and backtracking
+            returns whether a valid set of placements was achieved
+            """
+            nonlocal backtracks, selected, placements_tried, index
+            placements_tried.append(ship)
+            selected.append(ship)
+            if index == self.last_ind:
+                return True
+            else:
+                n_hits = self.count_hits(board, ship)
+                try:
+                    self.sample_one_placement(board, selected, index+1, hits_remaining - n_hits)
+                    return True
+                except BackTrackError:
+                    # backtrack
+                    # print("backtrack", index)
+                    selected.pop()
+                    backtracks += 1
+                    # allow backtracking `index` times
+                    if backtracks > index - 1:
+                        raise BackTrackError("too many backtracks")
+                return False
+        
+        # try to choose a placement on a hit if such a placement exists
+        if hits_remaining > 0:
+            hit_squares = board.get_hits()
+            indices = np.random.permutation(len(hit_squares))
+            for ind in indices:
+                hit_row, hit_col = hit_squares[ind]
+                # get ships with this name that could be placed in this square
+                ships_here = self.squares_to_ships[(hit_col,hit_row)]
+                ships_here = [x for x in ships_here if x.name == name and is_valid(x)]
+                random.shuffle(ships_here)
+                if len(ships_here):
+                    # try to pick one with multiple hits, if possible
+                    if hits_remaining > 1:
+                        for ship in ships_here:
+                            if self.count_hits(board, ship) > 1:
+                                if try_recurse(ship):
+                                    return selected
+                    # otherwise just grab a random one (first is random since list is shuffled)
+                    if try_recurse(ships_here[0]):
+                        return selected
+        # otherwise pick a random spot
+        # randomly order ships
+        indices = np.random.permutation(len(self.names_to_ships[name]))
+        for ind in indices:
+            ship = self.names_to_ships[name][ind]
+            # check doesn't conflict with other placements and has proper number of hits
+            if is_valid(ship):
+                if try_recurse(ship):
+                    return selected
+
+        raise BackTrackError("options exhausted")
+
+    @abc.abstractmethod
+    def rank_values(self, series):
+        """
+        given a pandas series, where the elements are how many ships were
+        found in the simulations at that square, sort the series so that the most
+        promising squares are first
+        """
+        raise NotImplementedError()
+
+    def choose_shot(self, board, opponents_sunk, name=None):
+        n_hits = board.num_hits()
+        # print(board)
+        
+        # sample the number of placements it takes to reach self.n_samples placements again
+        need_to_sample = self.n_samples - len(self.sampled_placements)
+        # print(need_to_sample)
+        for i in range(need_to_sample):
+            # print("sample", i)
+            while True:
+                self.generate_selection_order(opponents_sunk)
+                try:
+                    placements = self.sample_one_placement(board, [], 0, n_hits)
+                    break # leave while loop
+                except BackTrackError as e:
+                    # print("retry:", e)
+                    continue # retry with new selection order
+
+            self.sampled_placements.append(
+                self.placements_to_df(placements)
+            )
+        # sum over list of dfs, which sums them elementwise
+        summed_board = sum(self.sampled_placements)
+
+        ranked_squares = self.rank_values(summed_board).index
+        for row, col in ranked_squares:
+            if board[col,row] == SquareState.UNKNOWN:
+                return col, row
+        raise RuntimeError("No valid shots")
+
+
+    def handle_result(self, col, row, result, sunk, board, name):
+        # invalidate ships on a miss
+        if result == SquareState.EMPTY:
+            # get ships that are invalidated
+            ships_to_remove = self.squares_to_ships[(col, row)]
+            # remove invalid ships
+            for square,shipset in self.squares_to_ships.items():
+                shipset = [x for x in shipset if x not in ships_to_remove]
+                self.squares_to_ships[square] = shipset
+            for name,shipset in self.names_to_ships.items():
+                shipset = [x for x in shipset if x not in ships_to_remove]
+                self.names_to_ships[name] = shipset
+
+        # remove sampled placements that can be pruned now
+        self.sampled_placements = [x for x in self.sampled_placements if x[row,col] == result]
+
+        # remove sunk ship possibilities
+        if sunk:
+            self.squares_to_ships = {
+                square: [ship for ship in shipset if ship.name != name] for square,shipset in self.squares_to_ships.items()
+            }
+            # only valid ship placements for sunk ships are those that:
+            # * contain the square we know sunk it
+            # * contain only hits
+            self.names_to_ships[name] = [
+                ship for ship in self.names_to_ships[name] if ship.contains(col, row) and \
+                    self.count_hits(board, ship) == SHIP_LENS[ship.name]
+            ]
+
+
+class EntropyStrategy(SamplingStrategy):
+
+    def rank_values(self, series):
+        splitval = self.n_samples / 2 + 1 # weight toward there being a hit
+        diffs = (series - splitval).abs()
+        return diffs.sort_values()
+
+class GreedySamplingStrategy(SamplingStrategy):
+
+    def rank_values(self, series):
+        return series.sort_values(ascending=False)
+
+
+
+class CombinedStrat(Strategy):
+    """
+    strategy that combines two others, by playing the first one until a condition
+    is met, and then using the second one from then on
+    """
+
+    def __init__(self, s1, s2, condition="turns", cutoff=30):
+        self.s1 = s1
+        self.s2 = s2
+
+        self.cutoff = cutoff
+        if condition == "turns":
+            self.condition = self.turns_condition
+        elif condition == "hits":
+            self.condition = self.hits_condition
+        else:
+            raise ValueError()
+    
+    def turns_condition(self):
+        return self.turn_no >= self.cutoff
+    
+    def hits_condition(self):
+        return self.hits > self.cutoff
+
+    def reinitialize(self):
+        # initialize strats
+        self.s1.reinitialize()
+        self.s2.reinitialize()
+        # counter for turn number of next turn
+        self.turn_no = 1
+        self.hits = 0
+    
+    def choose_shot(self, *args, **kwargs):
+        # print("turn", self.turn_no)
+        if self.condition():
+            strat = self.s2
+        else:
+            strat = self.s1
+        return strat.choose_shot(*args, **kwargs)
+
+    def handle_result(self, **kwargs):
+        if kwargs["result"] == SquareState.SHIP:
+            self.hits += 1
+        self.s1.handle_result(**kwargs)
+        self.s2.handle_result(**kwargs)
+        self.turn_no += 1
 

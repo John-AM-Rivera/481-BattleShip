@@ -33,7 +33,7 @@ def plot_board(board, ax=None, title="Board State"):
     else:
         ax = plt.gca()
     data = board.get_data()
-    create_board_blot(data, ax, title=title)
+    create_board_plot(data, ax, title=title)
 
 
 def plot_grid_data(data, ax=None, title=None, cmap=None, **kwargs):
@@ -50,7 +50,11 @@ def plot_grid_data(data, ax=None, title=None, cmap=None, **kwargs):
     if isinstance(data, dict):
         data = pd.DataFrame(data.values(), index=data.keys()).unstack().T
     if cmap is None:
-        if data.min() >= 0:
+        try:
+            datamin = data.min().min()
+        except:
+            datamin = data.min()
+        if datamin >= 0:
             cmap = CMAP_01
             kwargs.setdefault("vmin", 0)
             kwargs.setdefault("vmin", 1)
@@ -79,7 +83,7 @@ def set_plot_gridlines(ax):
     ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
 
 
-def create_board_blot(data, ax, title=None, animated=False):
+def create_board_plot(data, ax, title=None, animated=False):
     """
     create one frame of an animated board plot
     """

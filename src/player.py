@@ -7,14 +7,17 @@ from src import SHIP_LENS, benchmark
 class Player:
     """
     args:
-        strategy, placement: classes of type Strategy, PlacementStrategy (not initialized instances, just the raw class)
+        strategy, placement: type Strategy, PlacementStrategy
     """
 
     def __init__(self, strategy: Strategy, placements: PlacementStrategy, name):
-        self.placements = placements()
-        self.strategy = strategy()
-        assert isinstance(self.strategy, Strategy)
-        assert isinstance(self.placements, PlacementStrategy)
+        assert isinstance(strategy, Strategy)
+        assert isinstance(placements, PlacementStrategy)
+        self.placements = placements
+        self.strategy = strategy
+        self.placements.reinitialize()
+        self.strategy.reinitialize()
+
         self.opponents_sunk = []
         self.name = name
         # board to keep track of our shots
@@ -43,5 +46,5 @@ class Player:
             self.opponents_sunk.append(name)
         # add shot to our board
         self.shots[col, row] = result
-        self.strategy.handle_result(col, row, result, sunk, name)
+        self.strategy.handle_result(col=col, row=row, board=self.shots, result=result, sunk=sunk, name=name)
         self.turns += 1

@@ -1,4 +1,6 @@
 import abc
+import random
+import itertools
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,7 +8,7 @@ import pandas as pd
 
 from src import BOARD_SIZE, COLS, ROWS, SHIP_LENS
 from src.board import Board, SquareState
-from src.utils import plot_grid_data
+from src.utils import plot_grid_data, get_all_valid_squares
 
 """
 Base classes & functions
@@ -111,7 +113,7 @@ class PlacementStrategy(abc.ABC):
     base class for placement strategies
     """
 
-    def __init__(self):
+    def reinitialize(self):
         self.ships = self.generate_placements()
     
     def __repr__(self):
@@ -151,31 +153,28 @@ class PlacementStrategy(abc.ABC):
             board[s] = SquareState.SHIP
         return board
 
-    @classmethod
-    def show_distribution(cls, n_samples):
+    def show_distribution(self, n_samples):
         """
         simulate N placements and return the board representing the probability
         distribution of ship placements
         """
         total = None
         for _ in range(n_samples):
-            df = cls().as_board(flat=True).data
+            self.reinitialize()
+            df = self.as_board(flat=True).data
             if total is None:
                 total = df
             else:
                 total += df
         final = total.unstack() / n_samples
-        plot_grid_data(final, title=cls.__name__ + f" distribution ({n_samples} samples)")
+        plot_grid_data(final, title=self.__class__.__name__ + f" distribution ({n_samples} samples)")
         plt.show()
 
 
 class NoPlacements(PlacementStrategy):
 
-    def __init__(self, *args, **kwargs):
-        pass
-
     def generate_placements(self, *args, **kwargs):
-        raise NotImplementedError()
+        return []
 
 
 """
@@ -196,40 +195,97 @@ class RandomPlacement(PlacementStrategy):
             possible = [x for x in possible if not x.overlaps(ship)]
         return selected
 
+
+class EvenPlacement(PlacementStrategy):
+
+    def generate_placements(self):
+        possible = all_possible_ship_locations()
+        squares = get_all_valid_squares()
+        random.shuffle(squares)
+        selected = []
+        for name in SHIP_LENS.keys():
+            # select a random square
+            for square in squares:
+                # choose ship containing that square
+                possible_subset = [
+                    x for x in possible if x.name == name and x.contains(*square)
+                ]
+                if len(possible_subset):
+                    break
+            else:
+                raise RuntimeError("Something is wrong...")
+            ship = random.choice(possible_subset)
+            selected.append(ship)
+            # invalidate invalid squares and ships
+            squares = [x for x in squares if not ship.contains(*x)]
+            possible = [x for x in possible if not x.overlaps(ship)]
+        return selected
+
+class CornerPlacement(PlacementStrategy):
+
+    def get_corner_squares(self):
+        corner_cols = COLS[:2] + COLS[-2:]
+        corner_rows = ROWS[:2] + ROWS[-2:]
+        return list(itertools.product(corner_cols, corner_rows))
+
+    def generate_placements(self):
+        possible = all_possible_ship_locations()
+        squares = self.get_corner_squares()
+        random.shuffle(squares)
+        selected = []
+        for name in SHIP_LENS.keys():
+            # select a random square
+            for square in squares:
+                # choose ship containing that square
+                possible_subset = [
+                    x for x in possible if x.name == name and x.contains(*square)
+                ]
+                if len(possible_subset):
+                    break
+            else:
+                raise RuntimeError("Something is wrong...")
+            ship = random.choice(possible_subset)
+            selected.append(ship)
+            # invalidate invalid squares and ships
+            squares = [x for x in squares if not ship.contains(*x)]
+            possible = [x for x in possible if not x.overlaps(ship)]
+        return selected
+
+
 class TestPlacement_1(PlacementStrategy):
 
     def generate_placements(self):
-        random.seed(8008135)
+        # random.seed(8008135)
         testBoard = [ShipPlacement('J', 8, 'J', 9, "patrol boat"), \
                      ShipPlacement('B', 5, 'B', 7, "destroyer"), \
                      ShipPlacement('C', 2, 'E', 2, "submarine"), \
                      ShipPlacement('D', 7, 'G', 7, "battleship"), \
                      ShipPlacement('G', 2, 'G', 6, "carrier")]
-        possible = set(testBoard)
-        selected = []
-        for name in SHIP_LENS.keys():
-            possible_subset = [x for x in possible if x.name == name]
-            idx = np.random.randint(len(possible_subset))
-            ship = possible_subset[idx]
-            selected.append(ship)
-            possible = [x for x in possible if not x.overlaps(ship)]
-        return selected
+        # possible = set(testBoard)
+        # selected = []
+        # for name in SHIP_LENS.keys():
+        #     possible_subset = [x for x in possible if x.name == name]
+        #     idx = np.random.randint(len(possible_subset))
+        #     ship = possible_subset[idx]
+        #     selected.append(ship)
+        #     possible = [x for x in possible if not x.overlaps(ship)]
+        return testBoard
 
 class adjacentPlacement_1(PlacementStrategy):
 
     def generate_placements(self):
-        random.seed(8008135)
+        # random.seed(8008135)
         testBoard = [ShipPlacement('J', 8, 'J', 9, "patrol boat"), \
                      ShipPlacement('B', 5, 'B', 7, "destroyer"), \
                      ShipPlacement('C', 2, 'E', 2, "submarine"), \
                      ShipPlacement('D', 7, 'G', 7, "battleship"), \
                      ShipPlacement('E', 6, 'I', 6, "carrier")]
-        possible = set(testBoard)
-        selected = []
-        for name in SHIP_LENS.keys():
-            possible_subset = [x for x in possible if x.name == name]
-            idx = np.random.randint(len(possible_subset))
-            ship = possible_subset[idx]
-            selected.append(ship)
-            possible = [x for x in possible if not x.overlaps(ship)]
-        return selected
+        # possible = set(testBoard)
+        # selected = []
+        # for name in SHIP_LENS.keys():
+        #     possible_subset = [x for x in possible if x.name == name]
+        #     idx = np.random.randint(len(possible_subset))
+        #     ship = possible_subset[idx]
+        #     selected.append(ship)
+        #     possible = [x for x in possible if not x.overlaps(ship)]
+        return testBoard
