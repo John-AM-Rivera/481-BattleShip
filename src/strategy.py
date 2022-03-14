@@ -945,7 +945,7 @@ class SamplingStrategy(Strategy, abc.ABC):
 class EntropyStrategy(SamplingStrategy):
 
     def rank_values(self, series):
-        splitval = self.n_samples / 2 + 1 # weight toward there being a hit
+        splitval = self.n_samples / 2 + 0.5 # break ties toward there being a hit
         diffs = (series - splitval).abs()
         return diffs.sort_values()
 
