@@ -39,7 +39,7 @@ def get_strats(shoot, placement):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p0",type=str,nargs=2,default=("userstrategy", "randomplacement"),metavar=("P0_STRAT","P0_PLACEMENT"),help="player 0: name of shooting strategy and name of placement strategy")
-    parser.add_argument("-p1",type=str,nargs=2,default=("EliminationStrategyV2","randomplacement"), metavar=("P1_STRAT","P1_PLACEMENT"),help="player 1: name of shooting strategy and name of placement strategy")
+    parser.add_argument("-p1",type=str,nargs=2,default=("SearchHuntStrategyV4","randomplacement"), metavar=("P1_STRAT","P1_PLACEMENT"),help="player 1: name of shooting strategy and name of placement strategy")
     ARGS = parser.parse_args()
 
     shoot0, placement0 = get_strats(*ARGS.p0)
