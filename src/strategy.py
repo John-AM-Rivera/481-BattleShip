@@ -126,6 +126,13 @@ class RandomStrategy(Strategy):
         return self.valid_squares.pop()
 
 
+
+"""
+Four versions of SearchHunt, kept to show development of thoughts. The last
+is the most up-to-date version
+"""
+
+
 # Idea:
 # generate some number of possible board placements
 # shoot based on one of the boards based on some heuristic that makes it the most desirable
@@ -133,7 +140,7 @@ class RandomStrategy(Strategy):
 # once we run out of simulated boards, generate new set of boards that comply with current state of opponent's board
 # continue shooting and generating boards until all opponent ships are shot down.
 
-class SearchHuntStrategy(Strategy):
+class SearchHuntStrategyV1(Strategy):
     # Bug: does not account for adjacent ships
 
     def reinitialize(self):
@@ -374,7 +381,7 @@ class SearchHuntStrategyV3(Strategy):
 
 # Accounts for adjacent ships and fixes issue where incoreect ship hits were being eliminated when a ship was sunk
 # Still possible to confuse algorithm when a lot of ships are clustered adjacent to each other. Performance is not affected much.
-class SearchHuntStrategyV4(Strategy):
+class SearchHuntStrategy(Strategy):
 
     def reinitialize(self):
         possible_ships = all_possible_ship_locations()
@@ -529,6 +536,12 @@ class SearchHuntStrategyV4(Strategy):
         del self.squares_to_ships[(col, row)]
         self.previous_shot = (col, row)
 
+
+
+"""
+Constraint Propogation
+"""
+
 class CSPStrategy(Strategy):
 
     # NOTE: A lot of the attributes are unused as they were originally made for testing. 
@@ -587,7 +600,7 @@ class CSPStrategy(Strategy):
                 ship_counts[self.valid_squares.index(coord)] *= 10
         return
 
-    def handle_result(self, col, row, result, sunk, name):
+    def handle_result(self, col, row, result, sunk, name, board):
         if result == SquareState.SHIP:
             self.row_info[row] += 1
             self.col_info[ord(col) - 65] += 1
@@ -596,10 +609,10 @@ class CSPStrategy(Strategy):
             if sunk:
                 self.ships_afloat.remove(name)
                 self.reduceShipTiles(name)
-                print("Ship was Sunk!")
+                # print("Ship was Sunk!")
                 self.possible_ships = {ship for ship in self.possible_ships if not ship.name == name}
-            else:
-                print("Ship was Hit!")
+            # else:
+            #     print("Ship was Hit!")
         elif result == SquareState.EMPTY:
             self.possible_ships = {ship for ship in self.possible_ships if not ship.contains(col, row)}
 
@@ -628,7 +641,12 @@ class CSPStrategy(Strategy):
         return
 
 
-class EliminationStrategy(Strategy):
+
+"""
+Elimination strategy: two versions, last is most up to date
+"""
+
+class EliminationStrategyV1(Strategy):
 
     def reinitialize(self):
         self.possible_ships = all_possible_ship_locations()
@@ -651,7 +669,7 @@ class EliminationStrategy(Strategy):
             self.possible_ships = {ship for ship in self.possible_ships if not ship.name == name}
 
 
-class EliminationStrategyV2(Strategy):
+class EliminationStrategy(Strategy):
     """
     faster version of the above
     """
@@ -699,6 +717,9 @@ class EliminationStrategyV2(Strategy):
         board.plot(ax2)
         plt.show()
 
+"""
+Neural-Network strategy
+"""
 
 class GreedyNNStrategy(Strategy):
     
@@ -743,6 +764,12 @@ class GreedyNNStrategy(Strategy):
 
     def handle_result(self, col, row, result, sunk, board, name):
         self.valid_squares.remove((col, row))
+
+
+
+"""
+Monte-carlo sampling strategies. Two variants
+"""
 
 
 class BackTrackError(Exception):
@@ -955,6 +982,11 @@ class GreedySamplingStrategy(SamplingStrategy):
         return series.sort_values(ascending=False)
 
 
+
+
+"""
+Class for combining two different strategies
+"""
 
 class CombinedStrat(Strategy):
     """

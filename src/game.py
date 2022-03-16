@@ -53,7 +53,8 @@ class Simulation:
         self.turns = []
         self.timings = None # Timer()
 
-    def _run_one_thread(self, max_secs):
+    def _run_one_thread(self, params):
+        max_secs, min_sims = params
         timer = Timer()
         turns = []
         timer.start("total")
@@ -67,7 +68,7 @@ class Simulation:
                 shooter.take_turn_against(target)
             timer.end("play")
             turns.append(shooter.turns)
-            if timer.get("total") > max_secs:
+            if timer.get("total") > max_secs and len(turns) >= min_sims:
                 break
         timer.end("total")
         return turns, timer.total_timers
@@ -80,17 +81,19 @@ class Simulation:
             self.timings = {k:self.timings[k]+timings[k] for k in self.timings}
 
     def run_one(self):
-        turns, timings = self._run_one_thread(max_secs=0)
+        turns, timings = self._run_one_thread((0, 0))
         self._update_metrics(turns, timings)
         return self
 
-    def run(self, max_secs=20):
+    def run(self, max_secs=20, min_sims=1):
         print("Simulating", max_secs, "(ish) seconds of", self.strategy.__class__.__name__, 
             "and", self.placement.__class__.__name__, "in", multiprocessing.cpu_count(), "processes")
+        min_sims_per = min_sims // multiprocessing.cpu_count()
         with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+            # create NCPUS processes running simulations
             results = pool.map(
                 self._run_one_thread, 
-                [max_secs for _ in range(multiprocessing.cpu_count())],
+                [(max_secs, min_sims_per) for i in range(multiprocessing.cpu_count())],
                 chunksize=1
             )
             for turns, timings in results:

@@ -35,7 +35,7 @@ class BoardGenerator(keras.utils.Sequence):
     """
 
     def __init__(self, placement_strat, batchsize, batches_per_epoch, 
-            shoot_strat=(EliminationStrategyV2, RandomStrategy),
+            shoot_strat=(EliminationStrategy, RandomStrategy),
             regen_each_epoch=False, turns_per_example=10):
 
         self.placement_strat = placement_strat
