@@ -22,6 +22,7 @@ import src.greedy_nn_eval
 
 def build_model():
     """
+    adapted from:
     https://keras.io/examples/vision/oxford_pets_image_segmentation/
     """
     assert BOARD_SIZE == 10

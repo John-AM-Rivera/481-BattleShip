@@ -79,13 +79,13 @@ class Tests(unittest.TestCase):
         self.assertTrue(hit)
         self.assertTrue(sunk)
 
-    def test_choice_reduction(self):
-        print("Running CSP")
-        g = Game(CSPStrategy, CSPStrategy, TestPlacement_2, TestPlacement_2)
-        g.play(show=True)
-        sim1 = Simulation(CSPStrategy, TestPlacement_1)
-        sim1.run()
-        print(sim1.metrics())
+    # def test_choice_reduction(self):
+    #     print("Running CSP")
+    #     g = Game(CSPStrategy(), CSPStrategy(), TestPlacement_2(), TestPlacement_2())
+    #     g.play(show=True)
+    #     sim1 = Simulation(CSPStrategy(), TestPlacement_1())
+    #     sim1.run()
+    #     print(sim1.metrics())
 
 
     def test_ship_eq(self):

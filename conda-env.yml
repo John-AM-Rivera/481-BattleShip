@@ -1,0 +1,15 @@
+name: battleship
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - pandas
+  - matplotlib
+  - jinja2
+  - ipykernel
+  - tqdm
+  - ffmpeg
+  - tensorflow==2.7
+  - pydot
+  - graphviz
